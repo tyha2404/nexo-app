@@ -1,79 +1,145 @@
-import React, { useState } from 'react';
+import { FormInput } from '@/components/ui/form';
+import { categoryService } from '@/services/category.service';
+import { Category } from '@/types/category.type';
+import { yupResolver } from '@hookform/resolvers/yup';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  TextInput,
+  CircleAlert as AlertCircle,
+  CreditCard as Edit3,
+  Plus,
+  Trash2,
+} from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import {
+  ActivityIndicator,
   Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, CreditCard as Edit3, Trash2, CircleAlert as AlertCircle } from 'lucide-react-native';
+import * as yup from 'yup';
 
-interface Category {
-  id: string;
-  name: string;
-  budget: number;
-  spent: number;
-  color: string;
-}
-
-const INITIAL_CATEGORIES: Category[] = [
-  { id: '1', name: 'Food & Dining', budget: 500, spent: 320, color: '#EF4444' },
-  { id: '2', name: 'Transportation', budget: 200, spent: 150, color: '#3B82F6' },
-  { id: '3', name: 'Shopping', budget: 300, spent: 280, color: '#8B5CF6' },
-  { id: '4', name: 'Entertainment', budget: 150, spent: 90, color: '#F59E0B' },
-  { id: '5', name: 'Bills & Utilities', budget: 400, spent: 380, color: '#10B981' },
-  { id: '6', name: 'Healthcare', budget: 200, spent: 45, color: '#EC4899' },
+const COLORS = [
+  '#EF4444',
+  '#3B82F6',
+  '#8B5CF6',
+  '#F59E0B',
+  '#10B981',
+  '#EC4899',
+  '#14B8A6',
+  '#F97316',
 ];
 
-const COLORS = ['#EF4444', '#3B82F6', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899', '#14B8A6', '#F97316'];
+// Form validation schema
+const categorySchema = yup.object({
+  name: yup
+    .string()
+    .required('Category name is required')
+    .min(2, 'Name must be at least 2 characters'),
+  description: yup.string().optional(),
+  color: yup.string().required('Please select a color'),
+});
+
+type CategoryFormData = yup.InferType<typeof categorySchema>;
 
 export default function CategoriesScreen() {
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [name, setName] = useState('');
-  const [budget, setBudget] = useState('');
-  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
-  const handleAddCategory = () => {
-    if (!name || !budget) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+    setValue,
+  } = useForm<CategoryFormData>({
+    resolver: yupResolver(categorySchema) as any,
+    defaultValues: {
+      name: '',
+      description: '',
+      color: COLORS[0],
+    },
+  });
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await categoryService.getAll();
+      setCategories(response.items || []);
+    } catch (err) {
+      console.log(err);
+
+      setError(
+        err instanceof Error ? err.message : 'Failed to fetch categories'
+      );
+      Alert.alert('Error', 'Failed to load categories');
+    } finally {
+      setLoading(false);
     }
-
-    const newCategory: Category = {
-      id: Date.now().toString(),
-      name,
-      budget: parseFloat(budget),
-      spent: 0,
-      color: selectedColor,
-    };
-
-    setCategories([...categories, newCategory]);
-    resetForm();
-    setShowAddModal(false);
-    Alert.alert('Success', 'Category added successfully!');
   };
 
-  const handleEditCategory = () => {
-    if (!name || !budget || !editingCategory) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
+  const handleAddCategory = async (data: CategoryFormData) => {
+    try {
+      const newCategory = await categoryService.create({
+        name: data.name,
+        description: data.description || '',
+      });
+
+      if (newCategory) {
+        setCategories([...categories, newCategory]);
+        resetForm();
+        setShowAddModal(false);
+        Alert.alert('Success', 'Category added successfully!');
+      } else {
+        Alert.alert('Error', 'Failed to add category');
+      }
+    } catch (err) {
+      Alert.alert(
+        'Error',
+        err instanceof Error ? err.message : 'Failed to add category'
+      );
     }
+  };
 
-    setCategories(categories.map(cat => 
-      cat.id === editingCategory.id 
-        ? { ...cat, name, budget: parseFloat(budget), color: selectedColor }
-        : cat
-    ));
+  const handleEditCategory = async (data: CategoryFormData) => {
+    if (!editingCategory) return;
 
-    resetForm();
-    setEditingCategory(null);
-    Alert.alert('Success', 'Category updated successfully!');
+    try {
+      const updatedCategory = await categoryService.update(editingCategory.id, {
+        name: data.name,
+        description: data.description || editingCategory.description,
+      });
+
+      if (updatedCategory) {
+        setCategories(
+          categories.map((cat) =>
+            cat.id === editingCategory.id ? updatedCategory : cat
+          )
+        );
+        resetForm();
+        setEditingCategory(null);
+        Alert.alert('Success', 'Category updated successfully!');
+      } else {
+        Alert.alert('Error', 'Failed to update category');
+      }
+    } catch (err) {
+      Alert.alert(
+        'Error',
+        err instanceof Error ? err.message : 'Failed to update category'
+      );
+    }
   };
 
   const handleDeleteCategory = (categoryId: string) => {
@@ -85,8 +151,17 @@ export default function CategoriesScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setCategories(categories.filter(cat => cat.id !== categoryId));
+          onPress: async () => {
+            try {
+              await categoryService.delete(categoryId);
+              setCategories(categories.filter((cat) => cat.id !== categoryId));
+              Alert.alert('Success', 'Category deleted successfully!');
+            } catch (err) {
+              Alert.alert(
+                'Error',
+                err instanceof Error ? err.message : 'Failed to delete category'
+              );
+            }
           },
         },
       ]
@@ -95,25 +170,18 @@ export default function CategoriesScreen() {
 
   const startEdit = (category: Category) => {
     setEditingCategory(category);
-    setName(category.name);
-    setBudget(category.budget.toString());
-    setSelectedColor(category.color);
+    setValue('name', category.name);
+    setValue('description', category.description || '');
+    // Set a default color or try to match with existing color logic
+    setValue('color', COLORS[0]);
   };
 
   const resetForm = () => {
-    setName('');
-    setBudget('');
-    setSelectedColor(COLORS[0]);
-  };
-
-  const getProgressPercentage = (spent: number, budget: number) => {
-    return Math.min((spent / budget) * 100, 100);
-  };
-
-  const getProgressColor = (percentage: number) => {
-    if (percentage >= 100) return '#EF4444';
-    if (percentage >= 80) return '#F59E0B';
-    return '#10B981';
+    reset({
+      name: '',
+      description: '',
+      color: COLORS[0],
+    });
   };
 
   return (
@@ -131,71 +199,72 @@ export default function CategoriesScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
-        {categories.map((category) => {
-          const percentage = getProgressPercentage(category.spent, category.budget);
-          const progressColor = getProgressColor(percentage);
-          const remaining = category.budget - category.spent;
-
-          return (
-            <View key={category.id} style={styles.categoryCard}>
-              <View style={styles.categoryHeader}>
-                <View style={styles.categoryInfo}>
-                  <View style={[styles.categoryColor, { backgroundColor: category.color }]} />
-                  <Text style={styles.categoryName}>{category.name}</Text>
-                </View>
-                <View style={styles.categoryActions}>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => startEdit(category)}
-                  >
-                    <Edit3 size={16} color="#6B7280" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => handleDeleteCategory(category.id)}
-                  >
-                    <Trash2 size={16} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.budgetInfo}>
-                <View style={styles.budgetRow}>
-                  <Text style={styles.spentText}>
-                    ${category.spent.toFixed(2)} of ${category.budget.toFixed(2)}
-                  </Text>
-                  <Text style={[styles.percentageText, { color: progressColor }]}>
-                    {percentage.toFixed(1)}%
-                  </Text>
-                </View>
-
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${percentage}%`, backgroundColor: progressColor }
-                    ]}
-                  />
-                </View>
-
-                <View style={styles.remainingRow}>
-                  {remaining >= 0 ? (
-                    <Text style={styles.remainingText}>
-                      ${remaining.toFixed(2)} remaining
-                    </Text>
-                  ) : (
-                    <View style={styles.overBudgetRow}>
-                      <AlertCircle size={16} color="#EF4444" />
-                      <Text style={styles.overBudgetText}>
-                        ${Math.abs(remaining).toFixed(2)} over budget
-                      </Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#10B981" />
+            <Text style={styles.loadingText}>Loading categories...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <AlertCircle size={24} color="#EF4444" />
+            <Text style={styles.errorContainerText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={fetchCategories}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : categories.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No categories yet</Text>
+            <Text style={styles.emptySubtext}>
+              Add your first category to get started
+            </Text>
+          </View>
+        ) : (
+          categories.map((category) => {
+            return (
+              <View key={category.id} style={styles.categoryCard}>
+                <View style={styles.categoryHeader}>
+                  <View style={styles.categoryInfo}>
+                    <View
+                      style={[
+                        styles.categoryColor,
+                        {
+                          backgroundColor:
+                            COLORS[Math.floor(Math.random() * COLORS.length)],
+                        },
+                      ]}
+                    />
+                    <View style={styles.categoryTextInfo}>
+                      <Text style={styles.categoryName}>{category.name}</Text>
+                      {category.description && (
+                        <Text style={styles.categoryDescription}>
+                          {category.description}
+                        </Text>
+                      )}
                     </View>
-                  )}
+                  </View>
+                  <View style={styles.categoryActions}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => startEdit(category)}
+                    >
+                      <Edit3 size={16} color="#6B7280" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => handleDeleteCategory(category.id)}
+                    >
+                      <Trash2 size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-            </View>
-          );
-        })}
+            );
+          })
+        )}
       </ScrollView>
 
       <Modal
@@ -209,44 +278,48 @@ export default function CategoriesScreen() {
               {editingCategory ? 'Edit Category' : 'Add New Category'}
             </Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Category Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., Groceries"
-                value={name}
-                onChangeText={setName}
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
+            <FormInput
+              name="name"
+              control={control}
+              label="Category Name"
+              placeholder="e.g., Groceries"
+              error={errors.name?.message}
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Monthly Budget</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0.00"
-                value={budget}
-                onChangeText={setBudget}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
+            <FormInput
+              name="description"
+              control={control}
+              label="Description (Optional)"
+              placeholder="Add a description for this category"
+              multiline
+              numberOfLines={3}
+              error={errors.description?.message}
+            />
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Color</Text>
-              <View style={styles.colorPalette}>
-                {COLORS.map((color) => (
-                  <TouchableOpacity
-                    key={color}
-                    style={[
-                      styles.colorOption,
-                      { backgroundColor: color },
-                      selectedColor === color && styles.selectedColor,
-                    ]}
-                    onPress={() => setSelectedColor(color)}
-                  />
-                ))}
-              </View>
+              <Controller
+                control={control}
+                name="color"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.colorPalette}>
+                    {COLORS.map((color) => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[
+                          styles.colorOption,
+                          { backgroundColor: color },
+                          value === color && styles.selectedColor,
+                        ]}
+                        onPress={() => onChange(color)}
+                      />
+                    ))}
+                  </View>
+                )}
+              />
+              {errors.color && (
+                <Text style={styles.errorText}>{errors.color.message}</Text>
+              )}
             </View>
 
             <View style={styles.modalActions}>
@@ -262,7 +335,10 @@ export default function CategoriesScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.modalSaveButton}
-                onPress={editingCategory ? handleEditCategory : handleAddCategory}
+                onPress={handleSubmit(
+                  editingCategory ? handleEditCategory : handleAddCategory
+                )}
+                disabled={isSubmitting}
               >
                 <Text style={styles.modalSaveText}>
                   {editingCategory ? 'Update' : 'Add'}
@@ -348,6 +424,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
+    marginBottom: 4,
+  },
+  categoryTextInfo: {
+    flex: 1,
+  },
+  categoryDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
   categoryActions: {
     flexDirection: 'row',
@@ -481,5 +566,61 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  errorContainerText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  errorText: {
+    marginTop: 4,
+    color: '#EF4444',
+    fontSize: 12,
   },
 });

@@ -2,14 +2,9 @@ import { authService } from '@/services/auth.service';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useForm } from 'react-hook-form';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { FormInput, FormPasswordInput } from '@/components/ui/form';
 import * as yup from 'yup';
 
 export const loginSchema = yup.object({
@@ -29,7 +24,7 @@ export default function LoginScreen() {
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
   } = useForm({
     resolver: yupResolver(loginSchema),
   });
@@ -62,69 +57,29 @@ export default function LoginScreen() {
       </Text>
 
       <View style={{ gap: 12 }}>
-        <View>
-          <Text style={{ marginBottom: 6, color: '#374151' }}>Email</Text>
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, value } }) => (
-              <TextInput
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholder="you@example.com"
-                placeholderTextColor="#9CA3AF"
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB',
-                  paddingHorizontal: 12,
-                  paddingVertical: 12,
-                  borderRadius: 10,
-                  color: '#111827',
-                }}
-                onChangeText={onChange}
-                value={value}
-              />
-            )}
-          />
-          {errors.email && (
-            <Text style={{ color: 'red' }}>{errors.email.message}</Text>
-          )}
-        </View>
+        <FormInput
+          name="email"
+          control={control}
+          label="Email"
+          placeholder="you@example.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          required
+        />
 
-        <View>
-          <Text style={{ marginBottom: 6, color: '#374151' }}>Password</Text>
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, value } }) => (
-              <TextInput
-                secureTextEntry
-                placeholder="••••••••"
-                placeholderTextColor="#9CA3AF"
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB',
-                  paddingHorizontal: 12,
-                  paddingVertical: 12,
-                  borderRadius: 10,
-                  color: '#111827',
-                }}
-                onChangeText={onChange}
-                value={value}
-              />
-            )}
-          />
-          {errors.password && (
-            <Text style={{ color: 'red' }}>{errors.password.message}</Text>
-          )}
-        </View>
+        <FormPasswordInput
+          name="password"
+          control={control}
+          label="Password"
+          placeholder="••••••••"
+          required
+        />
 
         <Pressable
           onPress={handleSubmit(onLogin)}
-          disabled={loading || !!errors.password || !!errors.email}
+          disabled={loading || !isValid}
           style={{
-            backgroundColor:
-              !!errors.password || !!errors.email ? '#A7F3D0' : '#10B981',
+            backgroundColor: !isValid ? '#A7F3D0' : '#10B981',
             paddingVertical: 14,
             borderRadius: 10,
             alignItems: 'center',

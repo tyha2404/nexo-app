@@ -88,8 +88,22 @@ export class AuthService {
     await this.storeUser(user);
   }
 
-  public async storeUser(user: User): Promise<void> {
-    await AsyncStorage.setItem(USER_LOCAL_STORAGE, JSON.stringify(user));
+  public async storeUser(user: User | null): Promise<void> {
+    if (user) {
+      await AsyncStorage.setItem(USER_LOCAL_STORAGE, JSON.stringify(user));
+    } else {
+      await AsyncStorage.removeItem(USER_LOCAL_STORAGE);
+    }
+  }
+
+  public async loadStoredUser(): Promise<User | null> {
+    try {
+      const userString = await AsyncStorage.getItem(USER_LOCAL_STORAGE);
+      return userString ? JSON.parse(userString) : null;
+    } catch (error) {
+      console.error('Error loading stored user:', error);
+      return null;
+    }
   }
 
   public async setAccessToken(

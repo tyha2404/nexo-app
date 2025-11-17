@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { AxiosInstance } from "axios";
+import { AxiosInstance } from 'axios';
 
 export interface ICRUDService<T> {
   getAll(filters?: Record<string, any>): Promise<PaginatedResponse<T>>;
-  getById(id: number): Promise<T | null>;
+  getById(id: string): Promise<T | null>;
   create(body: Partial<T>): Promise<T | null>;
-  update(id: number, body: Partial<T>): Promise<T | null>;
-  delete(id: number): Promise<void>;
+  update(id: string, body: Partial<T>): Promise<T | null>;
+  delete(id: string): Promise<void>;
 }
 
 export interface PaginatedResponse<T = any> {
@@ -32,20 +32,22 @@ export class CRUDService<T> implements ICRUDService<T> {
         params: filters ?? {},
       });
 
+      console.log({ data });
+
       if (data.success) {
-        return data.data;
+        return data;
       }
 
       return { list: [], total: 0, page: 1, perPage: 10 };
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(error.message || "Failed to fetch items");
+        throw new Error(error.message || 'Failed to fetch items');
       }
-      throw new Error("Failed to fetch items");
+      throw new Error('Failed to fetch items');
     }
   }
 
-  async getById(id: number): Promise<T | null> {
+  async getById(id: string): Promise<T | null> {
     try {
       const { data } = await this.restConnector.get(`${this.subPath}/${id}`);
       if (data.success) {
@@ -55,9 +57,9 @@ export class CRUDService<T> implements ICRUDService<T> {
       return null;
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(error.message || "Failed to fetch item by ID");
+        throw new Error(error.message || 'Failed to fetch item by ID');
       }
-      throw new Error("Failed to fetch item by ID");
+      throw new Error('Failed to fetch item by ID');
     }
   }
 
@@ -70,13 +72,13 @@ export class CRUDService<T> implements ICRUDService<T> {
       return null;
     } catch (error: unknown) {
       if (error instanceof Error) {
-        throw new Error(error.message || "Failed to create item");
+        throw new Error(error.message || 'Failed to create item');
       }
-      throw new Error("Failed to create item");
+      throw new Error('Failed to create item');
     }
   }
 
-  async update(id: number, body: Partial<T>): Promise<T | null> {
+  async update(id: string, body: Partial<T>): Promise<T | null> {
     try {
       const { data } = await this.restConnector.put(
         `${this.subPath}/${id}`,
@@ -89,23 +91,23 @@ export class CRUDService<T> implements ICRUDService<T> {
       return null;
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(error.message || "Failed to update item");
+        throw new Error(error.message || 'Failed to update item');
       }
-      throw new Error("Failed to update item");
+      throw new Error('Failed to update item');
     }
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     try {
       const { data } = await this.restConnector.delete(`${this.subPath}/${id}`);
       if (!data.success) {
-        throw new Error("Failed to delete the item");
+        throw new Error('Failed to delete the item');
       }
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(error.message || "Failed to delete item");
+        throw new Error(error.message || 'Failed to delete item');
       }
-      throw new Error("Failed to delete item");
+      throw new Error('Failed to delete item');
     }
   }
 }
