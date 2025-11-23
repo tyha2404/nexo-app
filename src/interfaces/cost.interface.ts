@@ -5,7 +5,7 @@ export interface Cost {
   amount: number;
   title: string;
   categoryId: string;
-  category: Category;
+  Category: Category;
   currency: string;
   incurredAt?: string;
 }

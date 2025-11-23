@@ -2,6 +2,7 @@ import { COLORS } from '@/constants';
 import { Category, Cost, CostFormData } from '@/interfaces';
 import { categoryService } from '@/services/category.service';
 import { costService } from '@/services/cost.service';
+import { formatCurrency } from '@/utils';
 import { yupResolver } from '@hookform/resolvers/yup';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar, DollarSign, Plus, Tag } from 'lucide-react-native';
@@ -280,7 +281,7 @@ export default function AddExpenseScreen() {
                 <Text style={styles.expenseDescription}>{cost.title}</Text>
               </View>
               <Text style={styles.expenseAmount}>
-                {cost.amount.toFixed(2)} {cost.currency}
+                {formatCurrency(cost.amount, cost.currency)}
               </Text>
             </View>
           ))}

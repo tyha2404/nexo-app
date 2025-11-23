@@ -1,5 +1,11 @@
 import { Tabs } from 'expo-router';
-import { CirclePlus as PlusCircle, ChartPie as PieChart, ChartBar as BarChart3, Settings } from 'lucide-react-native';
+import {
+  ChartBar as BarChart3,
+  ChartPie as PieChart,
+  CirclePlus as PlusCircle,
+  Settings,
+  Wallet,
+} from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -16,14 +22,22 @@ export default function TabLayout() {
           paddingBottom: 8,
           height: 80,
         },
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Add Expense',
+          title: 'Add',
           tabBarIcon: ({ size, color }) => (
             <PlusCircle size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="expenses"
+        options={{
+          title: 'Expenses',
+          tabBarIcon: ({ size, color }) => <Wallet size={size} color={color} />,
         }}
       />
       <Tabs.Screen
