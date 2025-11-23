@@ -1,6 +1,6 @@
 import { AxiosInstance } from 'axios';
 
-import { User } from '@/types/user.type';
+import { User } from '@/interfaces/user.interface';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import restConnector from '../connectors/axios-rest-connector';

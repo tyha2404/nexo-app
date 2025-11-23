@@ -1,6 +1,7 @@
 import { FormInput } from '@/components/ui/form';
+import { COLORS } from '@/constants';
+import { Category } from '@/interfaces';
 import { categoryService } from '@/services/category.service';
-import { Category } from '@/types/category.type';
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
   CircleAlert as AlertCircle,
@@ -22,17 +23,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as yup from 'yup';
-
-const COLORS = [
-  '#EF4444',
-  '#3B82F6',
-  '#8B5CF6',
-  '#F59E0B',
-  '#10B981',
-  '#EC4899',
-  '#14B8A6',
-  '#F97316',
-];
 
 // Form validation schema
 const categorySchema = yup.object({
@@ -99,7 +89,7 @@ export default function CategoriesScreen() {
 
       if (newCategory) {
         setCategories([...categories, newCategory]);
-        resetForm();
+        reset();
         setShowAddModal(false);
         Alert.alert('Success', 'Category added successfully!');
       } else {
@@ -128,7 +118,7 @@ export default function CategoriesScreen() {
             cat.id === editingCategory.id ? updatedCategory : cat
           )
         );
-        resetForm();
+        reset();
         setEditingCategory(null);
         Alert.alert('Success', 'Category updated successfully!');
       } else {
@@ -174,14 +164,6 @@ export default function CategoriesScreen() {
     setValue('description', category.description || '');
     // Set a default color or try to match with existing color logic
     setValue('color', COLORS[0]);
-  };
-
-  const resetForm = () => {
-    reset({
-      name: '',
-      description: '',
-      color: COLORS[0],
-    });
   };
 
   return (
@@ -326,7 +308,7 @@ export default function CategoriesScreen() {
               <TouchableOpacity
                 style={styles.modalCancelButton}
                 onPress={() => {
-                  resetForm();
+                  reset();
                   setShowAddModal(false);
                   setEditingCategory(null);
                 }}

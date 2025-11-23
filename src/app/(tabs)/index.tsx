@@ -1,85 +1,141 @@
-import React, { useState, useEffect } from 'react';
+import { COLORS } from '@/constants';
+import { Category, Cost, CostFormData } from '@/interfaces';
+import { categoryService } from '@/services/category.service';
+import { costService } from '@/services/cost.service';
+import { yupResolver } from '@hookform/resolvers/yup';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Calendar, DollarSign, Plus, Tag } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
+  ActivityIndicator,
   Alert,
   Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, DollarSign, Calendar, Tag } from 'lucide-react-native';
+import * as yup from 'yup';
 
-interface Expense {
-  id: string;
-  amount: number;
-  description: string;
-  category: string;
-  date: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  budget: number;
-  spent: number;
-  color: string;
-}
-
-const SAMPLE_CATEGORIES: Category[] = [
-  { id: '1', name: 'Food & Dining', budget: 500, spent: 320, color: '#EF4444' },
-  { id: '2', name: 'Transportation', budget: 200, spent: 150, color: '#3B82F6' },
-  { id: '3', name: 'Shopping', budget: 300, spent: 280, color: '#8B5CF6' },
-  { id: '4', name: 'Entertainment', budget: 150, spent: 90, color: '#F59E0B' },
-  { id: '5', name: 'Bills & Utilities', budget: 400, spent: 380, color: '#10B981' },
-];
+// Validation schema
+const costSchema = yup.object().shape({
+  title: yup
+    .string()
+    .required('Description is required')
+    .min(1, 'Description must be at least 1 character')
+    .max(100, 'Description must be less than 100 characters'),
+  amount: yup
+    .string()
+    .required('Amount is required')
+    .test('is-positive', 'Amount must be greater than 0', (value) => {
+      return parseFloat(value || '0') > 0;
+    })
+    .test('is-valid-number', 'Please enter a valid number', (value) => {
+      return !isNaN(parseFloat(value || '0'));
+    }),
+  currency: yup.string().required('Currency is required'),
+  categoryId: yup.string().required('Category is required'),
+  incurredAt: yup
+    .date()
+    .required('Date is required')
+    .typeError('Please select a valid date'),
+});
 
 export default function AddExpenseScreen() {
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories] = useState<Category[]>(SAMPLE_CATEGORIES);
+  const [costs, setCosts] = useState<Cost[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAddExpense = () => {
-    if (!amount || !description || !selectedCategory) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid },
+    setValue,
+    reset,
+  } = useForm<CostFormData>({
+    resolver: yupResolver(costSchema),
+    defaultValues: {
+      amount: '',
+      title: '',
+      categoryId: '',
+      currency: 'VND',
+      incurredAt: new Date(),
+    },
+    mode: 'onChange',
+  });
+
+  useEffect(() => {
+    fetchCosts();
+    fetchCategories();
+  }, []);
+
+  const fetchCosts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await costService.getAll();
+      setCosts(response.items || []);
+    } catch (err) {
+      console.log(err);
+      setError(
+        err instanceof Error ? err.message : 'Failed to fetch categories'
+      );
+      Alert.alert('Error', 'Failed to load categories');
+    } finally {
+      setLoading(false);
     }
-
-    const newExpense: Expense = {
-      id: Date.now().toString(),
-      amount: parseFloat(amount),
-      description,
-      category: selectedCategory,
-      date: new Date().toISOString().split('T')[0],
-    };
-
-    setExpenses([newExpense, ...expenses]);
-    
-    // Check budget alert
-    const category = categories.find(c => c.name === selectedCategory);
-    if (category) {
-      const newSpent = category.spent + parseFloat(amount);
-      const percentage = (newSpent / category.budget) * 100;
-      
-      if (percentage >= 100) {
-        Alert.alert('Budget Exceeded!', `You've exceeded your ${selectedCategory} budget by $${(newSpent - category.budget).toFixed(2)}`);
-      } else if (percentage >= 80) {
-        Alert.alert('Budget Warning', `You've used ${percentage.toFixed(1)}% of your ${selectedCategory} budget`);
-      }
-    }
-
-    // Reset form
-    setAmount('');
-    setDescription('');
-    setSelectedCategory('');
-    
-    Alert.alert('Success', 'Expense added successfully!');
   };
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await categoryService.getAll();
+      setCategories(response.items || []);
+    } catch (err) {
+      console.log(err);
+
+      setError(
+        err instanceof Error ? err.message : 'Failed to fetch categories'
+      );
+      Alert.alert('Error', 'Failed to load categories');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddCost = async (data: CostFormData) => {
+    try {
+      const newCost = await costService.create({
+        amount: parseFloat(data.amount),
+        title: data.title,
+        currency: data.currency,
+        categoryId: data.categoryId,
+        incurredAt: data.incurredAt.toISOString(),
+      });
+
+      if (newCost) {
+        setCosts([...costs, newCost]);
+        reset();
+        Alert.alert('Success', 'Cost added successfully!');
+      } else {
+        Alert.alert('Error', 'Failed to add cost');
+      }
+    } catch (err) {
+      Alert.alert(
+        'Error',
+        err instanceof Error ? err.message : 'Failed to add cost'
+      );
+    }
+  };
+
+  const onSubmit = handleSubmit(handleAddCost);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -92,31 +148,51 @@ export default function AddExpenseScreen() {
         <View style={styles.form}>
           <View style={styles.inputGroup}>
             <View style={styles.inputHeader}>
-              <DollarSign size={20} color="#10B981" />
-              <Text style={styles.inputLabel}>Amount</Text>
+              <Tag size={20} color="#10B981" />
+              <Text style={styles.inputLabel}>Title</Text>
             </View>
-            <TextInput
-              style={styles.input}
-              placeholder="0.00"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholderTextColor="#9CA3AF"
+            <Controller
+              control={control}
+              name="title"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={[styles.input, errors.title && styles.inputError]}
+                  placeholder="What did you buy?"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholderTextColor="#9CA3AF"
+                />
+              )}
             />
+            {errors.title && (
+              <Text style={styles.formErrorText}>{errors.title.message}</Text>
+            )}
           </View>
 
           <View style={styles.inputGroup}>
             <View style={styles.inputHeader}>
-              <Tag size={20} color="#10B981" />
-              <Text style={styles.inputLabel}>Description</Text>
+              <DollarSign size={20} color="#10B981" />
+              <Text style={styles.inputLabel}>Amount</Text>
             </View>
-            <TextInput
-              style={styles.input}
-              placeholder="What did you buy?"
-              value={description}
-              onChangeText={setDescription}
-              placeholderTextColor="#9CA3AF"
+            <Controller
+              control={control}
+              name="amount"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  style={[styles.input, errors.amount && styles.inputError]}
+                  placeholder="0.00"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              )}
             />
+            {errors.amount && (
+              <Text style={styles.formErrorText}>{errors.amount.message}</Text>
+            )}
           </View>
 
           <View style={styles.inputGroup}>
@@ -124,17 +200,73 @@ export default function AddExpenseScreen() {
               <Calendar size={20} color="#10B981" />
               <Text style={styles.inputLabel}>Category</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.input, styles.categoryButton]}
-              onPress={() => setShowCategoryModal(true)}
-            >
-              <Text style={selectedCategory ? styles.categoryButtonText : styles.categoryButtonPlaceholder}>
-                {selectedCategory || 'Select Category'}
+            <Controller
+              control={control}
+              name="categoryId"
+              render={({ field: { value } }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.input,
+                    styles.categoryButton,
+                    errors.categoryId && styles.inputError,
+                  ]}
+                  onPress={() => setShowCategoryModal(true)}
+                >
+                  <Text
+                    style={
+                      value
+                        ? styles.categoryButtonText
+                        : styles.categoryButtonPlaceholder
+                    }
+                  >
+                    {categories.find((cat) => cat.id === value)?.name ||
+                      'Select Category'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+            {errors.categoryId && (
+              <Text style={styles.formErrorText}>
+                {errors.categoryId.message}
               </Text>
-            </TouchableOpacity>
+            )}
           </View>
 
-          <TouchableOpacity style={styles.addButton} onPress={handleAddExpense}>
+          <View style={styles.inputGroup}>
+            <View style={styles.inputHeader}>
+              <Calendar size={20} color="#10B981" />
+              <Text style={styles.inputLabel}>Incurred At</Text>
+            </View>
+            <Controller
+              control={control}
+              name="incurredAt"
+              render={({ field: { onChange, value } }) => (
+                <DateTimePicker
+                  testID="dateTimePicker"
+                  value={value}
+                  mode="datetime"
+                  is24Hour={true}
+                  display="default"
+                  onChange={(event: any, selectedDate?: Date) => {
+                    if (event.type === 'set' && selectedDate) {
+                      onChange(selectedDate);
+                    }
+                  }}
+                />
+              )}
+            />
+            {errors.incurredAt && (
+              <Text style={styles.formErrorText}>
+                {errors.incurredAt.message}
+              </Text>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.addButton, !isValid && styles.addButtonDisabled]}
+            onPress={onSubmit}
+            disabled={!isValid}
+          >
             <Plus size={24} color="#FFFFFF" />
             <Text style={styles.addButtonText}>Add Expense</Text>
           </TouchableOpacity>
@@ -142,13 +274,14 @@ export default function AddExpenseScreen() {
 
         <View style={styles.recentSection}>
           <Text style={styles.recentTitle}>Recent Expenses</Text>
-          {expenses.slice(0, 5).map((expense) => (
-            <View key={expense.id} style={styles.expenseCard}>
+          {costs.slice(0, 5).map((cost) => (
+            <View key={cost.id} style={styles.expenseCard}>
               <View style={styles.expenseInfo}>
-                <Text style={styles.expenseDescription}>{expense.description}</Text>
-                <Text style={styles.expenseCategory}>{expense.category}</Text>
+                <Text style={styles.expenseDescription}>{cost.title}</Text>
               </View>
-              <Text style={styles.expenseAmount}>${expense.amount.toFixed(2)}</Text>
+              <Text style={styles.expenseAmount}>
+                {cost.amount.toFixed(2)} {cost.currency}
+              </Text>
             </View>
           ))}
         </View>
@@ -158,21 +291,53 @@ export default function AddExpenseScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Category</Text>
-            <ScrollView>
-              {categories.map((category) => (
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#10B981" />
+                <Text style={styles.loadingText}>Loading categories...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
                 <TouchableOpacity
-                  key={category.id}
-                  style={styles.categoryOption}
-                  onPress={() => {
-                    setSelectedCategory(category.name);
-                    setShowCategoryModal(false);
-                  }}
+                  style={styles.retryButton}
+                  onPress={fetchCategories}
                 >
-                  <View style={[styles.categoryColor, { backgroundColor: category.color }]} />
-                  <Text style={styles.categoryName}>{category.name}</Text>
+                  <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </View>
+            ) : (
+              <ScrollView>
+                {categories.map((category) => (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={styles.categoryOption}
+                    onPress={() => {
+                      setValue('categoryId', category.id);
+                      setShowCategoryModal(false);
+                    }}
+                  >
+                    <View
+                      style={[
+                        styles.categoryColor,
+                        {
+                          backgroundColor:
+                            COLORS[Math.floor(Math.random() * COLORS.length)],
+                        },
+                      ]}
+                    />
+                    <View style={styles.categoryInfo}>
+                      <Text style={styles.categoryName}>{category.name}</Text>
+                      {category.description && (
+                        <Text style={styles.categoryDescription}>
+                          {category.description}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowCategoryModal(false)}
@@ -342,9 +507,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 12,
   },
+  categoryInfo: {
+    flex: 1,
+  },
   categoryName: {
     fontSize: 16,
     color: '#374151',
+    fontWeight: '600',
+  },
+  categoryDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
   },
   modalCloseButton: {
     marginTop: 16,
@@ -357,5 +531,157 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#6B7280',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  datePickerModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    marginTop: 24,
+  },
+  modalCancelButton: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  modalSaveButton: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  dateTimeOptions: {
+    marginVertical: 20,
+  },
+  dateTimeOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dateTimeOptionText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  currentSelection: {
+    backgroundColor: '#F9FAFB',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  currentSelectionLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  currentSelectionValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  dateTimePickerButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  dateTimePickerButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    gap: 8,
+  },
+  dateTimePickerButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  quickOptions: {
+    marginBottom: 20,
+  },
+  quickOptionsLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  quickOption: {
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  quickOptionText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
+  },
+  formErrorText: {
+    color: '#EF4444',
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  addButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    shadowColor: 'transparent',
+    elevation: 0,
   },
 });
