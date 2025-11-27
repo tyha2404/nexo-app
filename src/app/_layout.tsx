@@ -1,12 +1,14 @@
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import AppSplashScreen from '@/components/SplashScreen';
 
 export default function RootLayout() {
-  useFrameworkReady();
+  const isFrameworkReady = useFrameworkReady();
 
   return (
     <>
+      <AppSplashScreen isFrameworkReady={isFrameworkReady} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
