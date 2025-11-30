@@ -1,8 +1,7 @@
 import { COLORS } from '@/constants';
-import { Category, Cost, CostFormData } from '@/interfaces';
+import { Category, CostFormData } from '@/interfaces';
 import { categoryService } from '@/services/category.service';
 import { costService } from '@/services/cost.service';
-import { formatCurrency } from '@/utils';
 import { yupResolver } from '@hookform/resolvers/yup';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar, DollarSign, Plus, Tag } from 'lucide-react-native';
@@ -48,7 +47,6 @@ const costSchema = yup.object().shape({
 
 export default function AddExpenseScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [costs, setCosts] = useState<Cost[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,26 +70,8 @@ export default function AddExpenseScreen() {
   });
 
   useEffect(() => {
-    fetchCosts();
     fetchCategories();
   }, []);
-
-  const fetchCosts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await costService.getAll();
-      setCosts(response.items || []);
-    } catch (err) {
-      console.log(err);
-      setError(
-        err instanceof Error ? err.message : 'Failed to fetch categories'
-      );
-      Alert.alert('Error', 'Failed to load categories');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchCategories = async () => {
     try {
@@ -122,7 +102,6 @@ export default function AddExpenseScreen() {
       });
 
       if (newCost) {
-        setCosts([...costs, newCost]);
         reset();
         Alert.alert('Success', 'Cost added successfully!');
       } else {
@@ -140,129 +119,138 @@ export default function AddExpenseScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <View style={styles.contentContainer}>
         <View style={styles.header}>
           <Text style={styles.title}>Add New Expense</Text>
           <Text style={styles.subtitle}>Track your daily spending</Text>
         </View>
 
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <View style={styles.inputHeader}>
-              <Tag size={20} color="#10B981" />
-              <Text style={styles.inputLabel}>Title</Text>
-            </View>
-            <Controller
-              control={control}
-              name="title"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={[styles.input, errors.title && styles.inputError]}
-                  placeholder="What did you buy?"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholderTextColor="#9CA3AF"
-                />
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <View style={styles.inputHeader}>
+                <Tag size={20} color="#10B981" />
+                <Text style={styles.inputLabel}>Title</Text>
+              </View>
+              <Controller
+                control={control}
+                name="title"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[styles.input, errors.title && styles.inputError]}
+                    placeholder="What did you buy?"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+              {errors.title && (
+                <Text style={styles.formErrorText}>{errors.title.message}</Text>
               )}
-            />
-            {errors.title && (
-              <Text style={styles.formErrorText}>{errors.title.message}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <View style={styles.inputHeader}>
-              <DollarSign size={20} color="#10B981" />
-              <Text style={styles.inputLabel}>Amount</Text>
             </View>
-            <Controller
-              control={control}
-              name="amount"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={[styles.input, errors.amount && styles.inputError]}
-                  placeholder="0.00"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  keyboardType="numeric"
-                  placeholderTextColor="#9CA3AF"
-                />
+
+            <View style={styles.inputGroup}>
+              <View style={styles.inputHeader}>
+                <DollarSign size={20} color="#10B981" />
+                <Text style={styles.inputLabel}>Amount</Text>
+              </View>
+              <Controller
+                control={control}
+                name="amount"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[styles.input, errors.amount && styles.inputError]}
+                    placeholder="0.00"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    keyboardType="numeric"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+              {errors.amount && (
+                <Text style={styles.formErrorText}>
+                  {errors.amount.message}
+                </Text>
               )}
-            />
-            {errors.amount && (
-              <Text style={styles.formErrorText}>{errors.amount.message}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <View style={styles.inputHeader}>
-              <Calendar size={20} color="#10B981" />
-              <Text style={styles.inputLabel}>Category</Text>
             </View>
-            <Controller
-              control={control}
-              name="categoryId"
-              render={({ field: { value } }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.input,
-                    styles.categoryButton,
-                    errors.categoryId && styles.inputError,
-                  ]}
-                  onPress={() => setShowCategoryModal(true)}
-                >
-                  <Text
-                    style={
-                      value
-                        ? styles.categoryButtonText
-                        : styles.categoryButtonPlaceholder
-                    }
+
+            <View style={styles.inputGroup}>
+              <View style={styles.inputHeader}>
+                <Calendar size={20} color="#10B981" />
+                <Text style={styles.inputLabel}>Category</Text>
+              </View>
+              <Controller
+                control={control}
+                name="categoryId"
+                render={({ field: { value } }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.input,
+                      styles.categoryButton,
+                      errors.categoryId && styles.inputError,
+                    ]}
+                    onPress={() => setShowCategoryModal(true)}
                   >
-                    {categories.find((cat) => cat.id === value)?.name ||
-                      'Select Category'}
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={
+                        value
+                          ? styles.categoryButtonText
+                          : styles.categoryButtonPlaceholder
+                      }
+                    >
+                      {categories.find((cat) => cat.id === value)?.name ||
+                        'Select Category'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+              {errors.categoryId && (
+                <Text style={styles.formErrorText}>
+                  {errors.categoryId.message}
+                </Text>
               )}
-            />
-            {errors.categoryId && (
-              <Text style={styles.formErrorText}>
-                {errors.categoryId.message}
-              </Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <View style={styles.inputHeader}>
-              <Calendar size={20} color="#10B981" />
-              <Text style={styles.inputLabel}>Incurred At</Text>
             </View>
-            <Controller
-              control={control}
-              name="incurredAt"
-              render={({ field: { onChange, value } }) => (
-                <DateTimePicker
-                  testID="dateTimePicker"
-                  value={value}
-                  mode="datetime"
-                  is24Hour={true}
-                  display="default"
-                  onChange={(event: any, selectedDate?: Date) => {
-                    if (event.type === 'set' && selectedDate) {
-                      onChange(selectedDate);
-                    }
-                  }}
-                />
-              )}
-            />
-            {errors.incurredAt && (
-              <Text style={styles.formErrorText}>
-                {errors.incurredAt.message}
-              </Text>
-            )}
-          </View>
 
+            <View style={styles.inputGroup}>
+              <View style={styles.inputHeader}>
+                <Calendar size={20} color="#10B981" />
+                <Text style={styles.inputLabel}>Incurred At</Text>
+              </View>
+              <Controller
+                control={control}
+                name="incurredAt"
+                render={({ field: { onChange, value } }) => (
+                  <DateTimePicker
+                    testID="dateTimePicker"
+                    value={value}
+                    mode="datetime"
+                    is24Hour={true}
+                    display="default"
+                    onChange={(event: any, selectedDate?: Date) => {
+                      if (event.type === 'set' && selectedDate) {
+                        onChange(selectedDate);
+                      }
+                    }}
+                  />
+                )}
+              />
+              {errors.incurredAt && (
+                <Text style={styles.formErrorText}>
+                  {errors.incurredAt.message}
+                </Text>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+
+        <View style={styles.bottomButtonContainer}>
           <TouchableOpacity
             style={[styles.addButton, !isValid && styles.addButtonDisabled]}
             onPress={onSubmit}
@@ -272,21 +260,7 @@ export default function AddExpenseScreen() {
             <Text style={styles.addButtonText}>Add Expense</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={styles.recentSection}>
-          <Text style={styles.recentTitle}>Recent Expenses</Text>
-          {costs.slice(0, 5).map((cost) => (
-            <View key={cost.id} style={styles.expenseCard}>
-              <View style={styles.expenseInfo}>
-                <Text style={styles.expenseDescription}>{cost.title}</Text>
-              </View>
-              <Text style={styles.expenseAmount}>
-                {formatCurrency(cost.amount, cost.currency)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+      </View>
 
       <Modal visible={showCategoryModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -357,8 +331,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  contentContainer: {
+    flex: 1,
+    height: '100%',
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
   },
   header: {
     padding: 24,
@@ -377,6 +359,12 @@ const styles = StyleSheet.create({
   form: {
     padding: 24,
     paddingTop: 0,
+  },
+  bottomButtonContainer: {
+    padding: 24,
+    paddingTop: 0,
+    paddingBottom: 0,
+    backgroundColor: '#F9FAFB',
   },
   inputGroup: {
     marginBottom: 24,
@@ -421,7 +409,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
     shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

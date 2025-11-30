@@ -3,6 +3,7 @@ import { Category, Cost, CostFormData } from '@/interfaces';
 import { categoryService } from '@/services/category.service';
 import { costService } from '@/services/cost.service';
 import { formatCurrency } from '@/utils';
+import moment from 'moment';
 import { yupResolver } from '@hookform/resolvers/yup';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
@@ -70,6 +71,8 @@ export default function ExpensesScreen() {
   const [editingExpense, setEditingExpense] = useState<Cost | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'title'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+  const [showMonthModal, setShowMonthModal] = useState(false);
 
   const {
     control,
@@ -92,7 +95,7 @@ export default function ExpensesScreen() {
   useEffect(() => {
     fetchExpenses();
     fetchCategories();
-  }, []);
+  }, [selectedMonth]);
 
   useEffect(() => {
     filterAndSortExpenses();
@@ -102,7 +105,38 @@ export default function ExpensesScreen() {
     try {
       setLoading(true);
       setError(null);
-      const response = await costService.getAll();
+
+      // Calculate start and end dates for the selected month
+      const startDate = new Date(
+        selectedMonth.getFullYear(),
+        selectedMonth.getMonth(),
+        1
+      );
+      const endDate = new Date(
+        selectedMonth.getFullYear(),
+        selectedMonth.getMonth() + 1,
+        0
+      );
+
+      // Format dates as YYYY-MM-DD
+      const formatDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const response = await costService.getAll({
+        startDate: formatDate(startDate),
+        endDate: formatDate(endDate),
+      });
+
+      console.log('>>>>>>', {
+        response: response.items,
+        startDate: formatDate(startDate),
+        endDate: formatDate(endDate),
+      });
+
       setExpenses(response.items || []);
     } catch (err) {
       console.log(err);
@@ -237,6 +271,7 @@ export default function ExpensesScreen() {
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategory('');
+    setSelectedMonth(new Date());
     setSortBy('date');
     setSortOrder('desc');
   };
@@ -287,7 +322,11 @@ export default function ExpensesScreen() {
         >
           <Filter size={20} color="#374151" />
           <Text style={styles.filterButtonText}>Filters</Text>
-          {(selectedCategory || sortBy !== 'date' || sortOrder !== 'desc') && (
+          {(selectedCategory ||
+            sortBy !== 'date' ||
+            sortOrder !== 'desc' ||
+            selectedMonth.getMonth() !== new Date().getMonth() ||
+            selectedMonth.getFullYear() !== new Date().getFullYear()) && (
             <View style={styles.filterIndicator} />
           )}
         </TouchableOpacity>
@@ -296,6 +335,22 @@ export default function ExpensesScreen() {
       {/* Filters Panel */}
       {showFilters && (
         <View style={styles.filtersPanel}>
+          <View style={styles.filterRow}>
+            <Text style={styles.filterLabel}>Month:</Text>
+            <TouchableOpacity
+              style={styles.categoryFilterButton}
+              onPress={() => setShowMonthModal(true)}
+            >
+              <Text style={styles.categoryFilterText}>
+                {selectedMonth.toLocaleDateString('en-US', {
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </Text>
+              <ChevronDown size={16} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.filterRow}>
             <Text style={styles.filterLabel}>Category:</Text>
             <TouchableOpacity
@@ -407,7 +462,7 @@ export default function ExpensesScreen() {
                       {expense.Category.name}
                     </Text>
                     <Text style={styles.expenseDate}>
-                      {new Date(expense.incurredAt || '').toLocaleDateString()}
+                      {moment(expense.incurredAt || '').format('DD-MM-YYYY')}
                     </Text>
                   </View>
                 </View>
@@ -626,6 +681,59 @@ export default function ExpensesScreen() {
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowCategoryModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Month Picker Modal */}
+      <Modal visible={showMonthModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Month</Text>
+            <ScrollView>
+              {Array.from({ length: 24 }, (_, index) => {
+                const date = new Date();
+                date.setMonth(date.getMonth() - index);
+                const isSelected =
+                  date.getMonth() === selectedMonth.getMonth() &&
+                  date.getFullYear() === selectedMonth.getFullYear();
+
+                return (
+                  <TouchableOpacity
+                    key={`${date.getFullYear()}-${date.getMonth()}`}
+                    style={[
+                      styles.categoryOption,
+                      isSelected && styles.categoryOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedMonth(new Date(date));
+                      setShowMonthModal(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryName,
+                        isSelected && styles.categoryNameSelected,
+                      ]}
+                    >
+                      {date.toLocaleDateString('en-US', {
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </Text>
+                    {isSelected && (
+                      <Text style={styles.selectedIndicator}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowMonthModal(false)}
             >
               <Text style={styles.modalCloseText}>Cancel</Text>
             </TouchableOpacity>
@@ -1068,6 +1176,18 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
+  categoryOptionSelected: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#10B981',
+  },
+  categoryNameSelected: {
+    color: '#10B981',
+  },
+  selectedIndicator: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#10B981',
+  },
   fab: {
     position: 'absolute',
     bottom: 24,
@@ -1078,7 +1198,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
