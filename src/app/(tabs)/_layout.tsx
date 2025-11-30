@@ -16,6 +16,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { MotiView, MotiText, AnimatePresence } from 'moti';
 
 export default function TabLayout() {
   const CustomTabBar = ({
@@ -52,7 +53,13 @@ export default function TabLayout() {
             // center emphasized button
             if (route.name === centerRouteKey) {
               return (
-                <View key={route.key} style={styles.centerWrap}>
+                <MotiView
+                  key={route.key}
+                  style={styles.centerWrap}
+                  from={{ scale: 1 }}
+                  animate={{ scale: isFocused ? 1.05 : 1 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+                >
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => onPress(route.name, isFocused)}
@@ -61,11 +68,20 @@ export default function TabLayout() {
                       pressed && styles.centerButtonPressed,
                     ]}
                   >
-                    <View style={styles.centerInner}>
+                    <MotiView
+                      style={styles.centerInner}
+                      from={{ rotate: '0deg' }}
+                      animate={{ rotate: isFocused ? '90deg' : '0deg' }}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 200,
+                        damping: 15,
+                      }}
+                    >
                       <Plus size={40} color="#fff" />
-                    </View>
+                    </MotiView>
                   </Pressable>
-                </View>
+                </MotiView>
               );
             }
 
@@ -82,15 +98,38 @@ export default function TabLayout() {
             };
 
             return (
-              <Pressable
+              <MotiView
                 key={route.key}
-                onPress={() => onPress(route.name, isFocused)}
-                accessibilityRole="button"
                 style={styles.tabItem}
+                from={{ scale: 1 }}
+                animate={{ scale: isFocused ? 1.05 : 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               >
-                {renderIcon()}
-                <Text style={[styles.tabLabel, { color }]}>{label}</Text>
-              </Pressable>
+                <Pressable
+                  onPress={() => onPress(route.name, isFocused)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.tabPressable,
+                    pressed && { transform: [{ scale: 0.95 }] },
+                  ]}
+                >
+                  <MotiView
+                    from={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {renderIcon()}
+                  </MotiView>
+                  <MotiText
+                    style={[styles.tabLabel, { color }]}
+                    from={{ translateY: 5 }}
+                    animate={{ translateY: isFocused ? -2 : 5 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  >
+                    {label}
+                  </MotiText>
+                </Pressable>
+              </MotiView>
             );
           })}
         </View>
@@ -175,6 +214,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   } as ViewStyle,
   tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
+  tabPressable: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',

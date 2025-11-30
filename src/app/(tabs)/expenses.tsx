@@ -131,12 +131,6 @@ export default function ExpensesScreen() {
         endDate: formatDate(endDate),
       });
 
-      console.log('>>>>>>', {
-        response: response.items,
-        startDate: formatDate(startDate),
-        endDate: formatDate(endDate),
-      });
-
       setExpenses(response.items || []);
     } catch (err) {
       console.log(err);
