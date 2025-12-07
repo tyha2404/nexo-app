@@ -3,13 +3,14 @@ import { COLORS } from '@/constants';
 import { Category } from '@/interfaces';
 import { categoryService } from '@/services/category.service';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   CircleAlert as AlertCircle,
   CreditCard as Edit3,
   Plus,
   Trash2,
 } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -58,9 +59,11 @@ export default function CategoriesScreen() {
     },
   });
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchCategories();
+    }, [])
+  );
 
   const fetchCategories = async () => {
     try {

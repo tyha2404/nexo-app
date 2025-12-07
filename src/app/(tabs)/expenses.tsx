@@ -3,9 +3,9 @@ import { Category, Cost, CostFormData } from '@/interfaces';
 import { categoryService } from '@/services/category.service';
 import { costService } from '@/services/cost.service';
 import { formatCurrency } from '@/utils';
-import moment from 'moment';
 import { yupResolver } from '@hookform/resolvers/yup';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   CircleAlert as AlertCircle,
   ChevronDown,
@@ -17,7 +17,8 @@ import {
   Trash2,
   X,
 } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import moment from 'moment';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -92,10 +93,12 @@ export default function ExpensesScreen() {
     mode: 'onChange',
   });
 
-  useEffect(() => {
-    fetchExpenses();
-    fetchCategories();
-  }, [selectedMonth]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchExpenses();
+      fetchCategories();
+    }, [selectedMonth])
+  );
 
   useEffect(() => {
     filterAndSortExpenses();
@@ -120,10 +123,7 @@ export default function ExpensesScreen() {
 
       // Format dates as YYYY-MM-DD
       const formatDate = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return moment(date).format('YYYY-MM-DD');
       };
 
       const response = await costService.getAll({
@@ -176,9 +176,7 @@ export default function ExpensesScreen() {
       let comparison = 0;
       switch (sortBy) {
         case 'date':
-          comparison =
-            new Date(a.incurredAt || '').getTime() -
-            new Date(b.incurredAt || '').getTime();
+          comparison = moment(a.incurredAt).diff(moment(b.incurredAt));
           break;
         case 'amount':
           comparison = a.amount - b.amount;
@@ -199,7 +197,7 @@ export default function ExpensesScreen() {
     setValue('amount', expense.amount.toString());
     setValue('categoryId', expense.categoryId);
     setValue('currency', expense.currency);
-    setValue('incurredAt', new Date(expense.incurredAt || ''));
+    setValue('incurredAt', moment(expense.incurredAt).toDate());
     setShowEditModal(true);
   };
 
@@ -212,7 +210,7 @@ export default function ExpensesScreen() {
         title: data.title,
         currency: data.currency,
         categoryId: data.categoryId,
-        incurredAt: data.incurredAt.toISOString(),
+        incurredAt: moment(data.incurredAt).toISOString(),
       });
 
       if (updatedExpense) {
@@ -277,6 +275,41 @@ export default function ExpensesScreen() {
     0
   );
 
+  // Group expenses by day
+  const groupExpensesByDay = (expenses: Cost[]) => {
+    const groups: { [key: string]: { date: string; expenses: Cost[] } } = {};
+
+    expenses.forEach((expense) => {
+      if (!expense.incurredAt) return;
+
+      const momentDate = moment(expense.incurredAt);
+      const dateKey = momentDate.format('YYYY-MM-DD');
+      const dateString = momentDate.format('dddd, MMMM D, YYYY');
+
+      if (!groups[dateKey]) {
+        groups[dateKey] = {
+          date: dateString,
+          expenses: [],
+        };
+      }
+
+      groups[dateKey].expenses.push(expense);
+    });
+
+    // Convert to array, sort by date (newest first) and add total
+    return Object.entries(groups)
+      .sort(([dateA], [dateB]) =>
+        moment(dateB, 'YYYY-MM-DD').diff(moment(dateA, 'YYYY-MM-DD'))
+      )
+      .map(([_, { date, expenses }]) => ({
+        date,
+        expenses,
+        total: expenses.reduce((sum, exp) => sum + exp.amount, 0),
+      }));
+  };
+
+  const groupedExpenses = groupExpensesByDay(filteredExpenses);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -319,8 +352,8 @@ export default function ExpensesScreen() {
           {(selectedCategory ||
             sortBy !== 'date' ||
             sortOrder !== 'desc' ||
-            selectedMonth.getMonth() !== new Date().getMonth() ||
-            selectedMonth.getFullYear() !== new Date().getFullYear()) && (
+            moment(selectedMonth).month() !== moment().month() ||
+            moment(selectedMonth).year() !== moment().year()) && (
             <View style={styles.filterIndicator} />
           )}
         </TouchableOpacity>
@@ -336,10 +369,7 @@ export default function ExpensesScreen() {
               onPress={() => setShowMonthModal(true)}
             >
               <Text style={styles.categoryFilterText}>
-                {selectedMonth.toLocaleDateString('en-US', {
-                  month: 'long',
-                  year: 'numeric',
-                })}
+                {moment(selectedMonth).format('MMMM YYYY')}
               </Text>
               <ChevronDown size={16} color="#6B7280" />
             </TouchableOpacity>
@@ -427,7 +457,7 @@ export default function ExpensesScreen() {
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
-        ) : filteredExpenses.length === 0 ? (
+        ) : groupedExpenses.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No expenses found</Text>
             <Text style={styles.emptySubtext}>
@@ -437,49 +467,69 @@ export default function ExpensesScreen() {
             </Text>
           </View>
         ) : (
-          filteredExpenses.map((expense) => (
-            <View key={expense.id} style={styles.expenseCard}>
-              <View style={styles.expenseHeader}>
-                <View style={styles.expenseInfo}>
-                  <View
-                    style={[
-                      styles.categoryColor,
-                      {
-                        backgroundColor:
-                          COLORS[Math.floor(Math.random() * COLORS.length)],
-                      },
-                    ]}
-                  />
-                  <View style={styles.expenseTextInfo}>
-                    <Text style={styles.expenseTitle}>{expense.title}</Text>
-                    <Text style={styles.expenseCategory}>
-                      {expense.Category.name}
-                    </Text>
-                    <Text style={styles.expenseDate}>
-                      {moment(expense.incurredAt || '').format('DD-MM-YYYY')}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.expenseAmountSection}>
-                  <Text style={styles.expenseAmount}>
-                    {formatCurrency(expense.amount, expense.currency)}
+          groupedExpenses.map((group) => (
+            <View key={group.date} style={styles.dayGroup}>
+              <View style={styles.dayHeader}>
+                <Text style={styles.dayTitle}>
+                  {moment(group.date, 'dddd, MMMM D, YYYY').format('dddd')}
+                </Text>
+                <View style={styles.dayHeaderRight}>
+                  <Text style={styles.dayDate}>
+                    {moment(group.date, 'dddd, MMMM D, YYYY').format(
+                      'MMM D, YYYY'
+                    )}
                   </Text>
-                  <View style={styles.expenseActions}>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleEditExpense(expense)}
-                    >
-                      <Edit3 size={16} color="#6B7280" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleDeleteExpense(expense.id)}
-                    >
-                      <Trash2 size={16} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={styles.dayTotal}>
+                    {formatCurrency(group.total, 'VND')}
+                  </Text>
                 </View>
               </View>
+
+              {group.expenses.map((expense) => (
+                <View key={expense.id} style={styles.expenseCard}>
+                  <View style={styles.expenseHeader}>
+                    <View style={styles.expenseInfo}>
+                      <View
+                        style={[
+                          styles.categoryColor,
+                          {
+                            backgroundColor:
+                              COLORS[Math.floor(Math.random() * COLORS.length)],
+                          },
+                        ]}
+                      />
+                      <View style={styles.expenseTextInfo}>
+                        <Text style={styles.expenseTitle}>{expense.title}</Text>
+                        <Text style={styles.expenseCategory}>
+                          {expense.Category.name}
+                        </Text>
+                        <Text style={styles.expenseTime}>
+                          {moment(expense.incurredAt).format('h:mm A')}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.expenseAmountSection}>
+                      <Text style={styles.expenseAmount}>
+                        {formatCurrency(expense.amount, expense.currency)}
+                      </Text>
+                      <View style={styles.expenseActions}>
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => handleEditExpense(expense)}
+                        >
+                          <Edit3 size={16} color="#6B7280" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => handleDeleteExpense(expense.id)}
+                        >
+                          <Trash2 size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              ))}
             </View>
           ))
         )}
@@ -917,7 +967,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    marginRight: 12,
+    marginBottom: 18,
   },
   sortOrderText: {
     marginLeft: 8,
@@ -942,14 +992,9 @@ const styles = StyleSheet.create({
   },
   expenseCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   expenseHeader: {
     flexDirection: 'row',
@@ -972,37 +1017,96 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   expenseTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  expenseCategory: {
-    fontSize: 14,
-    color: '#6B7280',
+    color: '#1E293B',
     marginBottom: 2,
   },
-  expenseDate: {
+  expenseTime: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#94A3B8',
+    marginTop: 2,
   },
   expenseAmountSection: {
     alignItems: 'flex-end',
   },
   expenseAmount: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  dayGroup: {
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: COLORS[Math.floor(Math.random() * COLORS.length)],
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  dayTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0.5, height: 0.5 },
+    textShadowRadius: 1,
+  },
+  dayHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  dayDate: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0.5, height: 0.5 },
+    textShadowRadius: 1,
+  },
+  dayTotal: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#EF4444',
-    marginBottom: 8,
+    color: '#0F172A',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  expenseCategory: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 6,
   },
   expenseActions: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   actionButton: {
-    padding: 8,
-    backgroundColor: '#F9FAFB',
+    padding: 6,
+    backgroundColor: '#F8FAFC',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   loadingContainer: {
     flex: 1,

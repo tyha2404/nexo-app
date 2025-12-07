@@ -2,10 +2,12 @@ import { COLORS } from '@/constants';
 import { Category, CostFormData } from '@/interfaces';
 import { categoryService } from '@/services/category.service';
 import { costService } from '@/services/cost.service';
+import { formatVND, parseVND } from '@/utils';
 import { yupResolver } from '@hookform/resolvers/yup';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
 import { Calendar, DollarSign, Plus, Tag } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -69,9 +71,11 @@ export default function AddExpenseScreen() {
     mode: 'onChange',
   });
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchCategories();
+    }, [])
+  );
 
   const fetchCategories = async () => {
     try {
@@ -94,7 +98,7 @@ export default function AddExpenseScreen() {
   const handleAddCost = async (data: CostFormData) => {
     try {
       const newCost = await costService.create({
-        amount: parseFloat(data.amount),
+        amount: parseVND(data.amount),
         title: data.title,
         currency: data.currency,
         categoryId: data.categoryId,
@@ -165,9 +169,14 @@ export default function AddExpenseScreen() {
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput
                     style={[styles.input, errors.amount && styles.inputError]}
-                    placeholder="0.00"
+                    placeholder="0"
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={(text) => {
+                      // Remove all non-digit characters and format as VND
+                      const cleanValue = text.replace(/[^\d]/g, '');
+                      const formattedValue = formatVND(cleanValue);
+                      onChange(formattedValue);
+                    }}
                     onBlur={onBlur}
                     keyboardType="numeric"
                     placeholderTextColor="#9CA3AF"
@@ -219,33 +228,34 @@ export default function AddExpenseScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <View style={styles.inputHeader}>
-                <Calendar size={20} color="#10B981" />
-                <Text style={styles.inputLabel}>Incurred At</Text>
-              </View>
-              <Controller
-                control={control}
-                name="incurredAt"
-                render={({ field: { onChange, value } }) => (
-                  <DateTimePicker
-                    testID="dateTimePicker"
-                    value={value}
-                    mode="datetime"
-                    is24Hour={true}
-                    display="default"
-                    onChange={(event: any, selectedDate?: Date) => {
-                      if (event.type === 'set' && selectedDate) {
-                        onChange(selectedDate);
-                      }
-                    }}
-                  />
+              <View style={styles.incurredAtContainer}>
+                <View style={styles.incurredAtHeader}>
+                  <Calendar size={20} color="#10B981" />
+                  <Text style={styles.inputLabel}>Incurred At</Text>
+                </View>
+                <Controller
+                  control={control}
+                  name="incurredAt"
+                  render={({ field: { onChange, value } }) => (
+                    <DateTimePicker
+                      testID="dateTimePicker"
+                      value={value || new Date()}
+                      mode="datetime"
+                      is24Hour={true}
+                      display="default"
+                      onChange={(_, selectedDate) => {
+                        const currentDate = selectedDate || value || new Date();
+                        onChange(currentDate);
+                      }}
+                    />
+                  )}
+                />
+                {errors.incurredAt && (
+                  <Text style={styles.formErrorText}>
+                    {errors.incurredAt.message}
+                  </Text>
                 )}
-              />
-              {errors.incurredAt && (
-                <Text style={styles.formErrorText}>
-                  {errors.incurredAt.message}
-                </Text>
-              )}
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -288,7 +298,11 @@ export default function AddExpenseScreen() {
                     key={category.id}
                     style={styles.categoryOption}
                     onPress={() => {
-                      setValue('categoryId', category.id);
+                      setValue('categoryId', category.id, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                        shouldTouch: true,
+                      });
                       setShowCategoryModal(false);
                     }}
                   >
@@ -368,6 +382,16 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 24,
+  },
+  incurredAtContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 10,
+  },
+  incurredAtHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   inputHeader: {
     flexDirection: 'row',

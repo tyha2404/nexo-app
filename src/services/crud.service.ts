@@ -32,8 +32,6 @@ export class CRUDService<T> implements ICRUDService<T> {
         params: filters ?? {},
       });
 
-      console.log({ data });
-
       if (data.success) {
         return data;
       }
@@ -99,10 +97,7 @@ export class CRUDService<T> implements ICRUDService<T> {
 
   async delete(id: string): Promise<void> {
     try {
-      const { data } = await this.restConnector.delete(`${this.subPath}/${id}`);
-      if (!data.success) {
-        throw new Error('Failed to delete the item');
-      }
+      await this.restConnector.delete(`${this.subPath}/${id}`);
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(error.message || 'Failed to delete item');
