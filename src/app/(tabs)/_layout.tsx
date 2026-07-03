@@ -6,6 +6,7 @@ import {
   Plus,
   Settings,
   Wallet,
+  TrendingUp,
 } from 'lucide-react-native';
 import React from 'react';
 import {
@@ -90,6 +91,8 @@ export default function TabLayout() {
                 return <Wallet size={20} color={color} />;
               if (route.name === 'categories')
                 return <PieChart size={20} color={color} />;
+              if (route.name === 'budget')
+                return <TrendingUp size={20} color={color} />;
               if (route.name === 'reports')
                 return <BarChart3 size={20} color={color} />;
               if (route.name === 'settings')
@@ -170,6 +173,15 @@ export default function TabLayout() {
         name="index"
         options={{
           tabBarIcon: ({ size, color }) => <Plus size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="budget"
+        options={{
+          title: 'Budget',
+          tabBarIcon: ({ size, color }) => (
+            <TrendingUp size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,20 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar, TrendingUp, TrendingDown, DollarSign } from 'lucide-react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import {
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+} from 'lucide-react-native';
+import { costService } from '@/services';
+import { Cost } from '@/interfaces';
+import moment from 'moment';
 
 const { width } = Dimensions.get('window');
 
@@ -31,11 +42,11 @@ const SAMPLE_DATA: ExpenseData[] = [
     amount: 1250,
     categories: {
       'Food & Dining': 320,
-      'Transportation': 150,
-      'Shopping': 280,
-      'Entertainment': 90,
+      Transportation: 150,
+      Shopping: 280,
+      Entertainment: 90,
       'Bills & Utilities': 380,
-      'Healthcare': 30,
+      Healthcare: 30,
     },
   },
   {
@@ -43,11 +54,11 @@ const SAMPLE_DATA: ExpenseData[] = [
     amount: 1180,
     categories: {
       'Food & Dining': 295,
-      'Transportation': 140,
-      'Shopping': 250,
-      'Entertainment': 110,
+      Transportation: 140,
+      Shopping: 250,
+      Entertainment: 110,
       'Bills & Utilities': 365,
-      'Healthcare': 20,
+      Healthcare: 20,
     },
   },
   {
@@ -55,11 +66,11 @@ const SAMPLE_DATA: ExpenseData[] = [
     amount: 1420,
     categories: {
       'Food & Dining': 380,
-      'Transportation': 180,
-      'Shopping': 320,
-      'Entertainment': 150,
+      Transportation: 180,
+      Shopping: 320,
+      Entertainment: 150,
       'Bills & Utilities': 370,
-      'Healthcare': 20,
+      Healthcare: 20,
     },
   },
   {
@@ -67,11 +78,11 @@ const SAMPLE_DATA: ExpenseData[] = [
     amount: 1380,
     categories: {
       'Food & Dining': 350,
-      'Transportation': 160,
-      'Shopping': 300,
-      'Entertainment': 120,
+      Transportation: 160,
+      Shopping: 300,
+      Entertainment: 120,
       'Bills & Utilities': 380,
-      'Healthcare': 70,
+      Healthcare: 70,
     },
   },
   {
@@ -79,11 +90,11 @@ const SAMPLE_DATA: ExpenseData[] = [
     amount: 1320,
     categories: {
       'Food & Dining': 320,
-      'Transportation': 150,
-      'Shopping': 280,
-      'Entertainment': 90,
+      Transportation: 150,
+      Shopping: 280,
+      Entertainment: 90,
       'Bills & Utilities': 380,
-      'Healthcare': 100,
+      Healthcare: 100,
     },
   },
   {
@@ -91,64 +102,160 @@ const SAMPLE_DATA: ExpenseData[] = [
     amount: 1465,
     categories: {
       'Food & Dining': 320,
-      'Transportation': 150,
-      'Shopping': 280,
-      'Entertainment': 90,
+      Transportation: 150,
+      Shopping: 280,
+      Entertainment: 90,
       'Bills & Utilities': 380,
-      'Healthcare': 245,
+      Healthcare: 245,
     },
   },
 ];
 
 const CATEGORY_COLORS: { [key: string]: string } = {
   'Food & Dining': '#EF4444',
-  'Transportation': '#3B82F6',
-  'Shopping': '#8B5CF6',
-  'Entertainment': '#F59E0B',
+  Transportation: '#3B82F6',
+  Shopping: '#8B5CF6',
+  Entertainment: '#F59E0B',
   'Bills & Utilities': '#10B981',
-  'Healthcare': '#EC4899',
+  Healthcare: '#EC4899',
 };
 
 export default function ReportsScreen() {
-  const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'year'>('month');
+  const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'year'>(
+    'month'
+  );
+  const [loading, setLoading] = useState(true);
+  const [expenseData, setExpenseData] = useState<ExpenseData[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const currentMonth = SAMPLE_DATA[SAMPLE_DATA.length - 1];
-  const previousMonth = SAMPLE_DATA[SAMPLE_DATA.length - 2];
-  const monthlyChange = currentMonth.amount - previousMonth.amount;
-  const monthlyChangePercentage = ((monthlyChange / previousMonth.amount) * 100).toFixed(1);
+  // Fetch data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchExpenseData();
+    }, [selectedPeriod])
+  );
 
-  const yearlyTotal = SAMPLE_DATA.reduce((sum, month) => sum + month.amount, 0);
-  const monthlyAverage = yearlyTotal / SAMPLE_DATA.length;
+  // Fetch expense data from API
+  const fetchExpenseData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const now = moment();
+      let startDate: string;
+      let endDate: string;
+
+      if (selectedPeriod === 'month') {
+        // Get data for the last 6 months including current month
+        startDate = now
+          .clone()
+          .subtract(5, 'months')
+          .startOf('month')
+          .format('YYYY-MM-DD');
+        endDate = now.endOf('month').format('YYYY-MM-DD');
+      } else {
+        // Get data for the current year
+        startDate = now.clone().startOf('year').format('YYYY-MM-DD');
+        endDate = now.endOf('year').format('YYYY-MM-DD');
+      }
+
+      const response = await costService.getAll({
+        startDate,
+        endDate,
+        limit: 1000,
+      });
+
+      // Handle both 'list' and 'items' properties in API response
+      const costsList = response.list || response.items || [];
+      const transformedData = transformCostDataToExpenseData(costsList);
+      setExpenseData(transformedData);
+    } catch (err) {
+      console.error('Error fetching expense data:', err);
+      setError('Failed to load expense data');
+      Alert.alert('Error', 'Failed to load expense data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Transform Cost API data to ExpenseData format
+  const transformCostDataToExpenseData = (costs: Cost[]): ExpenseData[] => {
+    const monthlyData: { [key: string]: ExpenseData } = {};
+
+    costs.forEach((cost) => {
+      const monthKey = moment(cost.incurredAt).format('MMM YYYY');
+
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = {
+          month: monthKey,
+          amount: 0,
+          categories: {},
+        };
+      }
+
+      monthlyData[monthKey].amount += cost.amount;
+
+      const categoryName = cost.Category?.name || 'Uncategorized';
+      monthlyData[monthKey].categories[categoryName] =
+        (monthlyData[monthKey].categories[categoryName] || 0) + cost.amount;
+    });
+
+    // Convert to array and sort by date
+    return Object.values(monthlyData).sort((a, b) => {
+      return moment(a.month, 'MMM YYYY').diff(moment(b.month, 'MMM YYYY'));
+    });
+  };
+
+  const currentMonth =
+    expenseData.length > 0 ? expenseData[expenseData.length - 1] : null;
+  const previousMonth =
+    expenseData.length > 1 ? expenseData[expenseData.length - 2] : null;
+  const monthlyChange =
+    currentMonth && previousMonth
+      ? currentMonth.amount - previousMonth.amount
+      : 0;
+  const monthlyChangePercentage =
+    previousMonth && previousMonth.amount > 0
+      ? ((monthlyChange / previousMonth.amount) * 100).toFixed(1)
+      : '0';
+
+  const yearlyTotal = expenseData.reduce((sum, month) => sum + month.amount, 0);
+  const monthlyAverage =
+    expenseData.length > 0 ? yearlyTotal / expenseData.length : 0;
 
   const getCategorySpending = (): CategorySpending[] => {
     const categoryTotals: { [key: string]: number } = {};
-    
-    if (selectedPeriod === 'month') {
+
+    if (selectedPeriod === 'month' && currentMonth) {
       Object.entries(currentMonth.categories).forEach(([category, amount]) => {
         categoryTotals[category] = amount;
       });
     } else {
-      SAMPLE_DATA.forEach(month => {
+      expenseData.forEach((month) => {
         Object.entries(month.categories).forEach(([category, amount]) => {
           categoryTotals[category] = (categoryTotals[category] || 0) + amount;
         });
       });
     }
 
-    const total = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
-    
+    const total = Object.values(categoryTotals).reduce(
+      (sum, amount) => sum + amount,
+      0
+    );
+
     return Object.entries(categoryTotals)
       .map(([name, amount]) => ({
         name,
         amount,
-        percentage: (amount / total) * 100,
+        percentage: total > 0 ? (amount / total) * 100 : 0,
         color: CATEGORY_COLORS[name] || '#6B7280',
       }))
       .sort((a, b) => b.amount - a.amount);
   };
 
   const categorySpending = getCategorySpending();
-  const maxAmount = Math.max(...SAMPLE_DATA.map(d => d.amount));
+  const maxAmount =
+    expenseData.length > 0 ? Math.max(...expenseData.map((d) => d.amount)) : 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -157,120 +264,199 @@ export default function ReportsScreen() {
         <Text style={styles.subtitle}>Analyze your spending patterns</Text>
       </View>
 
-      <ScrollView style={styles.scrollView}>
-        {/* Period Selector */}
-        <View style={styles.periodSelector}>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#10B981" />
+          <Text style={styles.loadingText}>Loading reports...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
-            style={[styles.periodButton, selectedPeriod === 'month' && styles.periodButtonActive]}
-            onPress={() => setSelectedPeriod('month')}
+            style={styles.retryButton}
+            onPress={fetchExpenseData}
           >
-            <Text style={[styles.periodButtonText, selectedPeriod === 'month' && styles.periodButtonTextActive]}>
-              This Month
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.periodButton, selectedPeriod === 'year' && styles.periodButtonActive]}
-            onPress={() => setSelectedPeriod('year')}
-          >
-            <Text style={[styles.periodButtonText, selectedPeriod === 'year' && styles.periodButtonTextActive]}>
-              This Year
-            </Text>
+            <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
+      ) : expenseData.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No expense data available</Text>
+          <Text style={styles.emptySubtext}>
+            Add some expenses to see your reports
+          </Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.scrollView}>
+          {/* Period Selector */}
+          <View style={styles.periodSelector}>
+            <TouchableOpacity
+              style={[
+                styles.periodButton,
+                selectedPeriod === 'month' && styles.periodButtonActive,
+              ]}
+              onPress={() => setSelectedPeriod('month')}
+            >
+              <Text
+                style={[
+                  styles.periodButtonText,
+                  selectedPeriod === 'month' && styles.periodButtonTextActive,
+                ]}
+              >
+                This Month
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.periodButton,
+                selectedPeriod === 'year' && styles.periodButtonActive,
+              ]}
+              onPress={() => setSelectedPeriod('year')}
+            >
+              <Text
+                style={[
+                  styles.periodButtonText,
+                  selectedPeriod === 'year' && styles.periodButtonTextActive,
+                ]}
+              >
+                This Year
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Summary Cards */}
-        <View style={styles.summarySection}>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryIcon}>
-              <DollarSign size={24} color="#10B981" />
+          {/* Summary Cards */}
+          <View style={styles.summarySection}>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryIcon}>
+                <DollarSign size={24} color="#10B981" />
+              </View>
+              <Text style={styles.summaryAmount}>
+                $
+                {selectedPeriod === 'month' && currentMonth
+                  ? currentMonth.amount.toFixed(2)
+                  : yearlyTotal.toFixed(2)}
+              </Text>
+              <Text style={styles.summaryLabel}>
+                {selectedPeriod === 'month' ? 'This Month' : 'This Year'}
+              </Text>
             </View>
-            <Text style={styles.summaryAmount}>
-              ${selectedPeriod === 'month' ? currentMonth.amount.toFixed(2) : yearlyTotal.toFixed(2)}
-            </Text>
-            <Text style={styles.summaryLabel}>
+
+            <View style={styles.summaryCard}>
+              <View
+                style={[
+                  styles.summaryIcon,
+                  {
+                    backgroundColor: monthlyChange >= 0 ? '#FEF2F2' : '#F0FDF4',
+                  },
+                ]}
+              >
+                {monthlyChange >= 0 ? (
+                  <TrendingUp size={24} color="#EF4444" />
+                ) : (
+                  <TrendingDown size={24} color="#10B981" />
+                )}
+              </View>
+              <Text style={styles.summaryAmount}>
+                {monthlyChange >= 0 ? '+' : ''}$
+                {Math.abs(monthlyChange).toFixed(2)}
+              </Text>
+              <Text style={styles.summaryLabel}>vs Last Month</Text>
+            </View>
+
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryIcon}>
+                <Calendar size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.summaryAmount}>
+                ${monthlyAverage.toFixed(2)}
+              </Text>
+              <Text style={styles.summaryLabel}>Monthly Average</Text>
+            </View>
+          </View>
+
+          {/* Monthly Spending Chart */}
+          <View style={styles.chartSection}>
+            <Text style={styles.sectionTitle}>Monthly Spending</Text>
+            <View style={styles.chart}>
+              {expenseData.slice(-6).map((data, index) => {
+                const height = (data.amount / maxAmount) * 120;
+                return (
+                  <View key={data.month} style={styles.chartBar}>
+                    <Text style={styles.chartAmount}>
+                      ${Math.round(data.amount)}
+                    </Text>
+                    <View style={[styles.bar, { height }]} />
+                    <Text style={styles.chartMonth}>
+                      {data.month.split(' ')[0]}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Category Breakdown */}
+          <View style={styles.categorySection}>
+            <Text style={styles.sectionTitle}>
+              Category Breakdown -{' '}
               {selectedPeriod === 'month' ? 'This Month' : 'This Year'}
             </Text>
-          </View>
-
-          <View style={styles.summaryCard}>
-            <View style={[styles.summaryIcon, { backgroundColor: monthlyChange >= 0 ? '#FEF2F2' : '#F0FDF4' }]}>
-              {monthlyChange >= 0 ? (
-                <TrendingUp size={24} color="#EF4444" />
-              ) : (
-                <TrendingDown size={24} color="#10B981" />
-              )}
-            </View>
-            <Text style={styles.summaryAmount}>
-              {monthlyChange >= 0 ? '+' : ''}${Math.abs(monthlyChange).toFixed(2)}
-            </Text>
-            <Text style={styles.summaryLabel}>vs Last Month</Text>
-          </View>
-
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryIcon}>
-              <Calendar size={24} color="#3B82F6" />
-            </View>
-            <Text style={styles.summaryAmount}>${monthlyAverage.toFixed(2)}</Text>
-            <Text style={styles.summaryLabel}>Monthly Average</Text>
-          </View>
-        </View>
-
-        {/* Monthly Spending Chart */}
-        <View style={styles.chartSection}>
-          <Text style={styles.sectionTitle}>Monthly Spending</Text>
-          <View style={styles.chart}>
-            {SAMPLE_DATA.slice(-6).map((data, index) => {
-              const height = (data.amount / maxAmount) * 120;
-              return (
-                <View key={data.month} style={styles.chartBar}>
-                  <Text style={styles.chartAmount}>${Math.round(data.amount)}</Text>
-                  <View style={[styles.bar, { height }]} />
-                  <Text style={styles.chartMonth}>{data.month.split(' ')[0]}</Text>
+            {categorySpending.map((category, index) => (
+              <View key={category.name} style={styles.categoryItem}>
+                <View style={styles.categoryInfo}>
+                  <View
+                    style={[
+                      styles.categoryDot,
+                      { backgroundColor: category.color },
+                    ]}
+                  />
+                  <Text style={styles.categoryName}>{category.name}</Text>
                 </View>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Category Breakdown */}
-        <View style={styles.categorySection}>
-          <Text style={styles.sectionTitle}>
-            Category Breakdown - {selectedPeriod === 'month' ? 'This Month' : 'This Year'}
-          </Text>
-          {categorySpending.map((category, index) => (
-            <View key={category.name} style={styles.categoryItem}>
-              <View style={styles.categoryInfo}>
-                <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
-                <Text style={styles.categoryName}>{category.name}</Text>
+                <View style={styles.categoryStats}>
+                  <Text style={styles.categoryAmount}>
+                    ${category.amount.toFixed(2)}
+                  </Text>
+                  <Text style={styles.categoryPercentage}>
+                    {category.percentage.toFixed(1)}%
+                  </Text>
+                </View>
               </View>
-              <View style={styles.categoryStats}>
-                <Text style={styles.categoryAmount}>${category.amount.toFixed(2)}</Text>
-                <Text style={styles.categoryPercentage}>{category.percentage.toFixed(1)}%</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
 
-        {/* Insights */}
-        <View style={styles.insightsSection}>
-          <Text style={styles.sectionTitle}>Insights</Text>
-          <View style={styles.insightCard}>
-            <Text style={styles.insightText}>
-              Your top spending category this month is <Text style={styles.insightHighlight}>{categorySpending[0]?.name}</Text> at ${categorySpending[0]?.amount.toFixed(2)}.
-            </Text>
+          {/* Insights */}
+          <View style={styles.insightsSection}>
+            <Text style={styles.sectionTitle}>Insights</Text>
+            {categorySpending.length > 0 && (
+              <View style={styles.insightCard}>
+                <Text style={styles.insightText}>
+                  Your top spending category this month is{' '}
+                  <Text style={styles.insightHighlight}>
+                    {categorySpending[0]?.name}
+                  </Text>{' '}
+                  at ${categorySpending[0]?.amount.toFixed(2)}.
+                </Text>
+              </View>
+            )}
+            {previousMonth && (
+              <View style={styles.insightCard}>
+                <Text style={styles.insightText}>
+                  You spent {monthlyChangePercentage}%{' '}
+                  {monthlyChange >= 0 ? 'more' : 'less'} compared to last month.
+                </Text>
+              </View>
+            )}
+            {currentMonth && (
+              <View style={styles.insightCard}>
+                <Text style={styles.insightText}>
+                  Your average daily spending this month is $
+                  {(currentMonth.amount / 30).toFixed(2)}.
+                </Text>
+              </View>
+            )}
           </View>
-          <View style={styles.insightCard}>
-            <Text style={styles.insightText}>
-              You spent {monthlyChangePercentage}% {monthlyChange >= 0 ? 'more' : 'less'} compared to last month.
-            </Text>
-          </View>
-          <View style={styles.insightCard}>
-            <Text style={styles.insightText}>
-              Your average daily spending this month is ${(currentMonth.amount / 30).toFixed(2)}.
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -484,5 +670,57 @@ const styles = StyleSheet.create({
   insightHighlight: {
     fontWeight: '600',
     color: '#10B981',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
   },
 });
