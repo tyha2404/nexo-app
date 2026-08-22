@@ -18,6 +18,7 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -33,6 +34,7 @@ const categorySchema = yup.object({
     .min(2, 'Name must be at least 2 characters'),
   description: yup.string().optional(),
   color: yup.string().required('Please select a color'),
+  excludeFromAverageDaily: yup.boolean().optional(),
 });
 
 type CategoryFormData = yup.InferType<typeof categorySchema>;
@@ -56,6 +58,7 @@ export default function CategoriesScreen() {
       name: '',
       description: '',
       color: COLORS[0],
+      excludeFromAverageDaily: false,
     },
   });
 
@@ -88,6 +91,7 @@ export default function CategoriesScreen() {
       const newCategory = await categoryService.create({
         name: data.name,
         description: data.description || '',
+        excludeFromAverageDaily: data.excludeFromAverageDaily,
       });
 
       if (newCategory) {
@@ -113,6 +117,7 @@ export default function CategoriesScreen() {
       const updatedCategory = await categoryService.update(editingCategory.id, {
         name: data.name,
         description: data.description || editingCategory.description,
+        excludeFromAverageDaily: data.excludeFromAverageDaily,
       });
 
       if (updatedCategory) {
@@ -165,6 +170,7 @@ export default function CategoriesScreen() {
     setEditingCategory(category);
     setValue('name', category.name);
     setValue('description', category.description || '');
+    setValue('excludeFromAverageDaily', category.excludeFromAverageDaily || false);
     // Set a default color or try to match with existing color logic
     setValue('color', COLORS[0]);
   };
@@ -305,6 +311,27 @@ export default function CategoriesScreen() {
               {errors.color && (
                 <Text style={styles.errorText}>{errors.color.message}</Text>
               )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Average Daily Spending</Text>
+              <Controller
+                control={control}
+                name="excludeFromAverageDaily"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.switchRow}>
+                    <Text style={styles.switchLabel}>
+                      Exclude from average daily spending
+                    </Text>
+                    <Switch
+                      value={value || false}
+                      onValueChange={onChange}
+                      trackColor={{ false: '#E5E7EB', true: '#10B981' }}
+                      thumbColor="#FFFFFF"
+                    />
+                  </View>
+                )}
+              />
             </View>
 
             <View style={styles.modalActions}>
@@ -522,6 +549,22 @@ const styles = StyleSheet.create({
   },
   selectedColor: {
     borderColor: '#374151',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  switchLabel: {
+    fontSize: 15,
+    color: '#374151',
+    flex: 1,
+    marginRight: 12,
   },
   modalActions: {
     flexDirection: 'row',

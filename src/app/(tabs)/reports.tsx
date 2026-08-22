@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -126,6 +126,7 @@ export default function ReportsScreen() {
   );
   const [loading, setLoading] = useState(true);
   const [expenseData, setExpenseData] = useState<ExpenseData[]>([]);
+  const [costs, setCosts] = useState<Cost[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch data when screen comes into focus
@@ -167,6 +168,7 @@ export default function ReportsScreen() {
 
       // Handle both 'list' and 'items' properties in API response
       const costsList = response.list || response.items || [];
+      setCosts(costsList);
       const transformedData = transformCostDataToExpenseData(costsList);
       setExpenseData(transformedData);
     } catch (err) {
@@ -222,6 +224,19 @@ export default function ReportsScreen() {
   const yearlyTotal = expenseData.reduce((sum, month) => sum + month.amount, 0);
   const monthlyAverage =
     expenseData.length > 0 ? yearlyTotal / expenseData.length : 0;
+
+  const averageDailySpending = useMemo(() => {
+    const now = moment();
+    const start = now.clone().startOf('month');
+    const end = now.clone().endOf('month');
+    const included = costs.filter(
+      (cost) =>
+        !cost.Category?.excludeFromAverageDaily &&
+        moment(cost.incurredAt).isBetween(start, end, null, '[]')
+    );
+    const total = included.reduce((sum, cost) => sum + cost.amount, 0);
+    return total / now.daysInMonth();
+  }, [costs]);
 
   const getCategorySpending = (): CategorySpending[] => {
     const categoryTotals: { [key: string]: number } = {};
@@ -450,7 +465,7 @@ export default function ReportsScreen() {
               <View style={styles.insightCard}>
                 <Text style={styles.insightText}>
                   Your average daily spending this month is $
-                  {(currentMonth.amount / 30).toFixed(2)}.
+                  {(averageDailySpending ?? 0).toFixed(2)}.
                 </Text>
               </View>
             )}

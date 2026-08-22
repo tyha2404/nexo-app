@@ -6,4 +6,5 @@ export interface Category extends BaseCommonType {
   user: User;
   name: string;
   description: string;
+  excludeFromAverageDaily?: boolean;
 }
