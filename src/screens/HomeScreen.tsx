@@ -6,7 +6,7 @@ import { formatVND, parseVND } from '@/utils';
 import { yupResolver } from '@hookform/resolvers/yup';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
-import { Calendar, DollarSign, MessageSquareText, Plus, Tag } from 'lucide-react-native';
+import { Calendar, DollarSign, Plus, Tag } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -24,7 +24,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as yup from 'yup';
 
 import { QuickPresetChips } from '@/components/QuickPresetChips';
-import { QuickInputSheet } from '@/components/QuickInputSheet';
 
 // Validation schema
 const costSchema = yup.object().shape({
@@ -52,7 +51,6 @@ const costSchema = yup.object().shape({
 
 export default function HomeScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [showQuickInputSheet, setShowQuickInputSheet] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,19 +126,8 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.contentContainer}>
         <View style={styles.header}>
-          <View style={styles.headerTitleRow}>
-            <View>
-              <Text style={styles.title}>Add New Expense</Text>
-              <Text style={styles.subtitle}>Track your daily spending</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.nlpButton}
-              onPress={() => setShowQuickInputSheet(true)}
-            >
-              <MessageSquareText size={18} color="#FFFFFF" />
-              <Text style={styles.nlpButtonText}>NLP</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.title}>Add New Expense</Text>
+          <Text style={styles.subtitle}>Track your daily spending</Text>
         </View>
 
         <QuickPresetChips onPresetExecuted={fetchCategories} />
@@ -350,12 +337,6 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-
-      <QuickInputSheet
-        visible={showQuickInputSheet}
-        onClose={() => setShowQuickInputSheet(false)}
-        onSuccess={fetchCategories}
-      />
     </SafeAreaView>
   );
 }
@@ -381,11 +362,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
   },
-  headerTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   title: {
     fontSize: 28,
     fontWeight: '700',
@@ -395,20 +371,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
-  },
-  nlpButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  nlpButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
   },
   form: {
     padding: 24,
