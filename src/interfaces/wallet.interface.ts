@@ -14,6 +14,14 @@ export interface Wallet {
   accountNumber?: string;
   bankName?: string;
   isIncludedInTotal: boolean;
+  creditLimit?: number;
+  statementDay?: number;
+  dueDay?: number;
+  statementBalance?: number;
+  minimumPayment?: number;
+  previousBalance?: number;
+  availableCredit?: number;
+  outstandingDebt?: number;
   createdAt: string;
 }
 
@@ -28,6 +36,9 @@ export interface CreateWalletDTO {
   accountNumber?: string;
   bankName?: string;
   isIncludedInTotal?: boolean;
+  creditLimit?: number;
+  statementDay?: number;
+  dueDay?: number;
 }
 
 export interface TransferMoneyDTO {
