@@ -82,15 +82,17 @@ export default function LoginScreen() {
             backgroundColor: !isValid ? '#A7F3D0' : '#10B981',
             paddingVertical: 14,
             borderRadius: 10,
+            flexDirection: 'row',
             alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
             marginTop: 10,
           }}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Log in</Text>
-          )}
+          {loading && <ActivityIndicator color="#FFFFFF" size="small" />}
+          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+            {loading ? 'Logging in...' : 'Log in'}
+          </Text>
         </Pressable>
       </View>
     </View>

@@ -245,6 +245,7 @@ export default function SalaryModal({
               onPress={onSubmit}
               disabled={!isValid || loading}
             >
+              {loading && <ActivityIndicator size="small" color="#FFFFFF" />}
               <Text style={styles.saveButtonText}>
                 {loading ? 'Saving...' : editingSalary ? 'Update' : 'Save'}
               </Text>
@@ -360,7 +361,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   cancelButtonText: {
     fontSize: 16,
@@ -372,7 +376,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#10B981',
     borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   saveButtonDisabled: {
     backgroundColor: '#9CA3AF',
