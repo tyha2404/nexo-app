@@ -140,7 +140,7 @@ export default function BudgetScreen() {
           style={styles.setupCard}
           onPress={() => setShowBudgetModal(true)}
         >
-          <Target size={32} color="#3B82F6" />
+          <Target size={32} color="#6366F1" />
           <Text style={styles.setupCardTitle}>Create Your Budget</Text>
           <Text style={styles.setupCardSubtitle}>
             Set spending limits and track your financial goals
@@ -160,7 +160,7 @@ export default function BudgetScreen() {
       <View style={styles.budgetCard}>
         <View style={styles.cardHeader}>
           <View style={styles.cardIcon}>
-            <TrendingUp size={24} color="#3B82F6" />
+            <TrendingUp size={24} color="#6366F1" />
           </View>
           <Text style={styles.cardTitle}>{activeBudget.name}</Text>
           <TouchableOpacity onPress={() => setShowBudgetModal(true)}>

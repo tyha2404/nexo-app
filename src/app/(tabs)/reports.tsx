@@ -113,7 +113,7 @@ const SAMPLE_DATA: ExpenseData[] = [
 
 const CATEGORY_COLORS: { [key: string]: string } = {
   'Food & Dining': '#EF4444',
-  Transportation: '#3B82F6',
+  Transportation: '#6366F1',
   Shopping: '#8B5CF6',
   Entertainment: '#F59E0B',
   'Bills & Utilities': '#10B981',
@@ -380,7 +380,7 @@ export default function ReportsScreen() {
 
             <View style={styles.summaryCard}>
               <View style={styles.summaryIcon}>
-                <Calendar size={24} color="#3B82F6" />
+                <Calendar size={24} color="#6366F1" />
               </View>
               <Text style={styles.summaryAmount}>
                 ${monthlyAverage.toFixed(2)}
