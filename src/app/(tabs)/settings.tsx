@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Shield, Download, Upload, Trash2, CircleHelp as HelpCircle, Star, ChevronRight, User, CreditCard, Globe, LogOut } from 'lucide-react-native';
+import { Shield, Download, Upload, Trash2, CircleHelp as HelpCircle, Star, ChevronRight, User, CreditCard, Globe, LogOut } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 interface SettingItem {
@@ -25,9 +25,6 @@ interface SettingItem {
 }
 
 export default function SettingsScreen() {
-  const [notifications, setNotifications] = useState(true);
-  const [budgetAlerts, setBudgetAlerts] = useState(true);
-  const [weeklyReports, setWeeklyReports] = useState(false);
   const [biometrics, setBiometrics] = useState(false);
 
   const handleExportData = () => {
@@ -111,38 +108,6 @@ export default function SettingsScreen() {
                 onPress: () => router.replace('/(auth)/login'),
               },
             ]),
-        },
-      ],
-    },
-    {
-      title: 'Notifications',
-      items: [
-        {
-          id: 'notifications',
-          title: 'Push Notifications',
-          subtitle: 'Receive app notifications',
-          icon: <Bell size={20} color="#6B7280" />,
-          type: 'switch' as const,
-          value: notifications,
-          onToggle: setNotifications,
-        },
-        {
-          id: 'budget-alerts',
-          title: 'Budget Alerts',
-          subtitle: 'Get notified when approaching limits',
-          icon: <Bell size={20} color="#6B7280" />,
-          type: 'switch' as const,
-          value: budgetAlerts,
-          onToggle: setBudgetAlerts,
-        },
-        {
-          id: 'weekly-reports',
-          title: 'Weekly Reports',
-          subtitle: 'Receive weekly spending summaries',
-          icon: <Bell size={20} color="#6B7280" />,
-          type: 'switch' as const,
-          value: weeklyReports,
-          onToggle: setWeeklyReports,
         },
       ],
     },
