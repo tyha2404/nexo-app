@@ -4,6 +4,7 @@ import { User } from '@/interfaces/user.interface';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import restConnector from '../connectors/axios-rest-connector';
+import { supabase } from '../config/supabase';
 
 const AUTHORIZATION_HEADER = 'Authorization';
 export const ACCESS_TOKEN_LOCAL_STORAGE = 'jwt';
@@ -21,6 +22,28 @@ export class AuthService {
 
   public async login(values: { email: string; password: string }) {
     try {
+      // 1. Try Supabase Auth
+      const { data: sbData, error: sbError } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      });
+
+      if (!sbError && sbData?.session) {
+        const user: User = {
+          id: sbData.user.id,
+          email: sbData.user.email || values.email,
+          username: sbData.user.user_metadata?.username || values.email.split('@')[0],
+          password: '',
+          createdAt: sbData.user.created_at,
+          updatedAt: sbData.user.updated_at || sbData.user.created_at,
+        };
+
+        await this.storeAuthenticatedInfo(user, sbData.session.access_token);
+        await this.loadAccessToken();
+        return user;
+      }
+
+      // 2. Fallback to existing Go API
       const { data } = await this.restConnector.post('/auth/login', {
         email: values.email,
         password: values.password,
