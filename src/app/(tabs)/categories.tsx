@@ -9,13 +9,16 @@ import {
   CreditCard as Edit3,
   Plus,
   Trash2,
+  X,
 } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -23,7 +26,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as yup from 'yup';
 
 // Form validation schema
@@ -40,6 +43,7 @@ const categorySchema = yup.object({
 type CategoryFormData = yup.InferType<typeof categorySchema>;
 
 export default function CategoriesScreen() {
+  const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -262,77 +266,109 @@ export default function CategoriesScreen() {
         visible={showAddModal || editingCategory !== null}
         animationType="slide"
         transparent
+        onRequestClose={() => {
+          reset();
+          setShowAddModal(false);
+          setEditingCategory(null);
+        }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {editingCategory ? 'Edit Category' : 'Add New Category'}
-            </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View
+            style={[
+              styles.modalContent,
+              { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingCategory ? 'Edit Category' : 'Add New Category'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  reset();
+                  setShowAddModal(false);
+                  setEditingCategory(null);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
 
-            <FormInput
-              name="name"
-              control={control}
-              label="Category Name"
-              placeholder="e.g., Groceries"
-              error={errors.name?.message}
-            />
-
-            <FormInput
-              name="description"
-              control={control}
-              label="Description (Optional)"
-              placeholder="Add a description for this category"
-              multiline
-              numberOfLines={3}
-              error={errors.description?.message}
-            />
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Color</Text>
-              <Controller
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={true}
+            >
+              <FormInput
+                name="name"
                 control={control}
-                name="color"
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.colorPalette}>
-                    {COLORS.map((color) => (
-                      <TouchableOpacity
-                        key={color}
-                        style={[
-                          styles.colorOption,
-                          { backgroundColor: color },
-                          value === color && styles.selectedColor,
-                        ]}
-                        onPress={() => onChange(color)}
+                label="Category Name"
+                placeholder="e.g., Groceries"
+                error={errors.name?.message}
+              />
+
+              <FormInput
+                name="description"
+                control={control}
+                label="Description (Optional)"
+                placeholder="Add a description for this category"
+                multiline
+                numberOfLines={3}
+                error={errors.description?.message}
+              />
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Color</Text>
+                <Controller
+                  control={control}
+                  name="color"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={styles.colorPalette}>
+                      {COLORS.map((color) => (
+                        <TouchableOpacity
+                          key={color}
+                          style={[
+                            styles.colorOption,
+                            { backgroundColor: color },
+                            value === color && styles.selectedColor,
+                          ]}
+                          onPress={() => onChange(color)}
+                        />
+                      ))}
+                    </View>
+                  )}
+                />
+                {errors.color && (
+                  <Text style={styles.errorText}>{errors.color.message}</Text>
+                )}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Average Daily Spending</Text>
+                <Controller
+                  control={control}
+                  name="excludeFromAverageDaily"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={styles.switchRow}>
+                      <Text style={styles.switchLabel}>
+                        Exclude from average daily spending
+                      </Text>
+                      <Switch
+                        value={value || false}
+                        onValueChange={onChange}
+                        trackColor={{ false: '#E5E7EB', true: '#10B981' }}
+                        thumbColor="#FFFFFF"
                       />
-                    ))}
-                  </View>
-                )}
-              />
-              {errors.color && (
-                <Text style={styles.errorText}>{errors.color.message}</Text>
-              )}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Average Daily Spending</Text>
-              <Controller
-                control={control}
-                name="excludeFromAverageDaily"
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.switchRow}>
-                    <Text style={styles.switchLabel}>
-                      Exclude from average daily spending
-                    </Text>
-                    <Switch
-                      value={value || false}
-                      onValueChange={onChange}
-                      trackColor={{ false: '#E5E7EB', true: '#10B981' }}
-                      thumbColor="#FFFFFF"
-                    />
-                  </View>
-                )}
-              />
-            </View>
+                    </View>
+                  )}
+                />
+              </View>
+            </ScrollView>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -358,7 +394,7 @@ export default function CategoriesScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -507,14 +543,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
+    maxHeight: '85%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 24,
-    textAlign: 'center',
+  },
+  modalBody: {
+    flexShrink: 1,
+  },
+  modalBodyContent: {
+    padding: 20,
   },
   inputGroup: {
     marginBottom: 20,
@@ -568,7 +619,13 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
-    marginTop: 24,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+    gap: 12,
   },
   modalCancelButton: {
     flex: 1,
@@ -576,7 +633,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
     alignItems: 'center',
-    marginRight: 12,
   },
   modalCancelText: {
     fontSize: 16,

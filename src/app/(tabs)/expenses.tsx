@@ -23,7 +23,9 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,7 +33,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as yup from 'yup';
 
 // Validation schema for editing
@@ -59,6 +61,7 @@ const costSchema = yup.object().shape({
 });
 
 export default function ExpensesScreen() {
+  const insets = useSafeAreaInsets();
   const [expenses, setExpenses] = useState<Cost[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Cost[]>([]);
@@ -536,116 +539,151 @@ export default function ExpensesScreen() {
       </ScrollView>
 
       {/* Edit Modal */}
-      <Modal visible={showEditModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Expense</Text>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Title</Text>
-              <Controller
-                control={control}
-                name="title"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    style={[styles.input, errors.title && styles.inputError]}
-                    placeholder="What did you buy?"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-              {errors.title && (
-                <Text style={styles.formErrorText}>{errors.title.message}</Text>
-              )}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          reset();
+          setShowEditModal(false);
+          setEditingExpense(null);
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View
+            style={[
+              styles.modalContent,
+              { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Expense</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  reset();
+                  setShowEditModal(false);
+                  setEditingExpense(null);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={22} color="#6B7280" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Amount</Text>
-              <Controller
-                control={control}
-                name="amount"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    style={[styles.input, errors.amount && styles.inputError]}
-                    placeholder="0.00"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    keyboardType="numeric"
-                    placeholderTextColor="#9CA3AF"
-                  />
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={true}
+            >
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Title</Text>
+                <Controller
+                  control={control}
+                  name="title"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.title && styles.inputError]}
+                      placeholder="What did you buy?"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+                {errors.title && (
+                  <Text style={styles.formErrorText}>{errors.title.message}</Text>
                 )}
-              />
-              {errors.amount && (
-                <Text style={styles.formErrorText}>
-                  {errors.amount.message}
-                </Text>
-              )}
-            </View>
+              </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Category</Text>
-              <Controller
-                control={control}
-                name="categoryId"
-                render={({ field: { value } }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.input,
-                      styles.categoryButton,
-                      errors.categoryId && styles.inputError,
-                    ]}
-                    onPress={() => setShowCategoryModal(true)}
-                  >
-                    <Text
-                      style={
-                        value
-                          ? styles.categoryButtonText
-                          : styles.categoryButtonPlaceholder
-                      }
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Amount</Text>
+                <Controller
+                  control={control}
+                  name="amount"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.amount && styles.inputError]}
+                      placeholder="0.00"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      keyboardType="numeric"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+                {errors.amount && (
+                  <Text style={styles.formErrorText}>
+                    {errors.amount.message}
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Category</Text>
+                <Controller
+                  control={control}
+                  name="categoryId"
+                  render={({ field: { value } }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.input,
+                        styles.categoryButton,
+                        errors.categoryId && styles.inputError,
+                      ]}
+                      onPress={() => setShowCategoryModal(true)}
                     >
-                      {categories.find((cat) => cat.id === value)?.name ||
-                        'Select Category'}
-                    </Text>
-                  </TouchableOpacity>
+                      <Text
+                        style={
+                          value
+                            ? styles.categoryButtonText
+                            : styles.categoryButtonPlaceholder
+                        }
+                      >
+                        {categories.find((cat) => cat.id === value)?.name ||
+                          'Select Category'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+                {errors.categoryId && (
+                  <Text style={styles.formErrorText}>
+                    {errors.categoryId.message}
+                  </Text>
                 )}
-              />
-              {errors.categoryId && (
-                <Text style={styles.formErrorText}>
-                  {errors.categoryId.message}
-                </Text>
-              )}
-            </View>
+              </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Date</Text>
-              <Controller
-                control={control}
-                name="incurredAt"
-                render={({ field: { onChange, value } }) => (
-                  <DateTimePicker
-                    testID="dateTimePicker"
-                    value={value}
-                    mode="datetime"
-                    is24Hour={true}
-                    display="default"
-                    onChange={(event: any, selectedDate?: Date) => {
-                      if (event.type === 'set' && selectedDate) {
-                        onChange(selectedDate);
-                      }
-                    }}
-                  />
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Date</Text>
+                <Controller
+                  control={control}
+                  name="incurredAt"
+                  render={({ field: { onChange, value } }) => (
+                    <DateTimePicker
+                      testID="dateTimePicker"
+                      value={value}
+                      mode="datetime"
+                      display="default"
+                      onChange={(event: any, selectedDate?: Date) => {
+                        if (event.type === 'set' && selectedDate) {
+                          onChange(selectedDate);
+                        }
+                      }}
+                    />
+                  )}
+                />
+                {errors.incurredAt && (
+                  <Text style={styles.formErrorText}>
+                    {errors.incurredAt.message}
+                  </Text>
                 )}
-              />
-              {errors.incurredAt && (
-                <Text style={styles.formErrorText}>
-                  {errors.incurredAt.message}
-                </Text>
-              )}
-            </View>
+              </View>
+            </ScrollView>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -667,15 +705,33 @@ export default function ExpensesScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Category Selection Modal */}
-      <Modal visible={showCategoryModal} animationType="slide" transparent>
+      <Modal
+        visible={showCategoryModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowCategoryModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Category</Text>
-            <ScrollView>
+          <View
+            style={[
+              styles.modalContent,
+              { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity
+                onPress={() => setShowCategoryModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
               <TouchableOpacity
                 style={styles.categoryOption}
                 onPress={() => {
@@ -722,22 +778,42 @@ export default function ExpensesScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowCategoryModal(false)}
-            >
-              <Text style={styles.modalCloseText}>Cancel</Text>
-            </TouchableOpacity>
+            <View style={styles.modalCloseButtonWrapper}>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowCategoryModal(false)}
+              >
+                <Text style={styles.modalCloseText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
 
       {/* Month Picker Modal */}
-      <Modal visible={showMonthModal} animationType="slide" transparent>
+      <Modal
+        visible={showMonthModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowMonthModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Month</Text>
-            <ScrollView>
+          <View
+            style={[
+              styles.modalContent,
+              { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Month</Text>
+              <TouchableOpacity
+                onPress={() => setShowMonthModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
               {Array.from({ length: 24 }, (_, index) => {
                 const date = new Date();
                 date.setMonth(date.getMonth() - index);
@@ -775,12 +851,14 @@ export default function ExpensesScreen() {
                 );
               })}
             </ScrollView>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowMonthModal(false)}
-            >
-              <Text style={styles.modalCloseText}>Cancel</Text>
-            </TouchableOpacity>
+            <View style={styles.modalCloseButtonWrapper}>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowMonthModal(false)}
+              >
+                <Text style={styles.modalCloseText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1168,15 +1246,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
-    maxHeight: '80%',
+    maxHeight: '85%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 20,
-    textAlign: 'center',
+  },
+  modalBody: {
+    flexShrink: 1,
+  },
+  modalBodyContent: {
+    padding: 20,
   },
   inputGroup: {
     marginBottom: 20,
@@ -1215,7 +1307,13 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
-    marginTop: 24,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+    gap: 12,
   },
   modalCancelButton: {
     flex: 1,
@@ -1223,7 +1321,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
     alignItems: 'center',
-    marginRight: 12,
   },
   modalCancelText: {
     fontSize: 16,
@@ -1242,8 +1339,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  modalCloseButtonWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+  },
   modalCloseButton: {
-    marginTop: 16,
     padding: 16,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,

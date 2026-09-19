@@ -9,7 +9,8 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
-import { ChevronDown } from 'lucide-react-native';
+import { ChevronDown, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FormSelectProps, SelectOption } from './types';
 
 export function FormSelect<T extends FieldValues = FieldValues>({
@@ -26,6 +27,7 @@ export function FormSelect<T extends FieldValues = FieldValues>({
   options,
   placeholder = 'Select an option',
 }: FormSelectProps<T>) {
+  const insets = useSafeAreaInsets();
   const [modalVisible, setModalVisible] = useState(false);
 
   const renderLabel = () => {
@@ -142,9 +144,22 @@ export function FormSelect<T extends FieldValues = FieldValues>({
                 activeOpacity={1}
                 onPress={() => setModalVisible(false)}
               >
-                <View style={styles.modalContent}>
+                <View
+                  style={[
+                    styles.modalContent,
+                    { paddingBottom: Math.max(insets.bottom, 16) },
+                  ]}
+                >
                   <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Select an option</Text>
+                    <Text style={styles.modalTitle}>
+                      {label ? `Select ${label}` : 'Select an option'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setModalVisible(false)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <X size={20} color="#6B7280" />
+                    </TouchableOpacity>
                   </View>
                   <FlatList
                     data={options}
@@ -210,10 +225,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '70%',
+    maxHeight: '80%',
+    overflow: 'hidden',
   },
   modalHeader: {
-    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -221,7 +242,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
-    textAlign: 'center',
   },
   optionsList: {
     flexGrow: 0,

@@ -6,7 +6,7 @@ import { formatVND, parseVND } from '@/utils';
 import { yupResolver } from '@hookform/resolvers/yup';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
-import { Calendar, DollarSign, Plus, Tag } from 'lucide-react-native';
+import { Calendar, DollarSign, Plus, Tag, X } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -20,7 +20,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as yup from 'yup';
 
 import { QuickPresetChips } from '@/components/QuickPresetChips';
@@ -50,6 +50,7 @@ const costSchema = yup.object().shape({
 });
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,10 +274,28 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <Modal visible={showCategoryModal} animationType="slide" transparent>
+      <Modal
+        visible={showCategoryModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowCategoryModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Category</Text>
+          <View
+            style={[
+              styles.modalContent,
+              { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity
+                onPress={() => setShowCategoryModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
             {loading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#10B981" />
@@ -293,7 +312,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              <ScrollView>
+              <ScrollView style={styles.modalBody}>
                 {categories.map((category) => (
                   <TouchableOpacity
                     key={category.id}
@@ -328,12 +347,14 @@ export default function HomeScreen() {
                 ))}
               </ScrollView>
             )}
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowCategoryModal(false)}
-            >
-              <Text style={styles.modalCloseText}>Cancel</Text>
-            </TouchableOpacity>
+            <View style={styles.modalCloseButtonWrapper}>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowCategoryModal(false)}
+              >
+                <Text style={styles.modalCloseText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -456,15 +477,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
-    maxHeight: '70%',
+    maxHeight: '80%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 20,
-    textAlign: 'center',
+  },
+  modalBody: {
+    flexShrink: 1,
   },
   categoryOption: {
     flexDirection: 'row',
@@ -492,8 +524,15 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
+  modalCloseButtonWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+  },
   modalCloseButton: {
-    marginTop: 16,
     padding: 16,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
