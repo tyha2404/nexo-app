@@ -8,14 +8,13 @@ import { FormInput, FormPasswordInput } from '@/components/ui/form';
 import * as yup from 'yup';
 
 export const loginSchema = yup.object({
-  email: yup
+  identifier: yup
     .string()
-    .email('Invalid email address')
-    .required('Email is required'),
+    .required('Tên đăng nhập hoặc Email không được để trống'),
   password: yup
     .string()
-    .min(5, 'Password must be at least 5 characters')
-    .required('Password is required'),
+    .min(5, 'Mật khẩu phải có ít nhất 5 ký tự')
+    .required('Mật khẩu không được để trống'),
 });
 
 export default function LoginScreen() {
@@ -29,10 +28,15 @@ export default function LoginScreen() {
     resolver: yupResolver(loginSchema),
   });
 
-  const onLogin = async (data: { email: string; password: string }) => {
+  const onLogin = async (data: { identifier: string; password: string }) => {
     setLoading(true);
     try {
-      const loginResponse = await authService.login(data);
+      const isEmail = data.identifier.includes('@');
+      const loginResponse = await authService.login({
+        username: !isEmail ? data.identifier : undefined,
+        email: isEmail ? data.identifier : undefined,
+        password: data.password,
+      });
       if (loginResponse) {
         router.replace('/(tabs)');
       }
@@ -58,11 +62,10 @@ export default function LoginScreen() {
 
       <View style={{ gap: 12 }}>
         <FormInput
-          name="email"
+          name="identifier"
           control={control}
-          label="Email"
-          placeholder="you@example.com"
-          keyboardType="email-address"
+          label="Tên đăng nhập hoặc Email"
+          placeholder="Nhập username hoặc email"
           autoCapitalize="none"
           required
         />

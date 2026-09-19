@@ -20,32 +20,38 @@ export class AuthService {
     this.loadAccessToken();
   }
 
-  public async login(values: { email: string; password: string }) {
+  public async login(values: { username?: string; email?: string; password: string }) {
     try {
-      // 1. Try Supabase Auth
-      const { data: sbData, error: sbError } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      });
+      const identifier = values.username || values.email || '';
+      const isEmail = identifier.includes('@');
 
-      if (!sbError && sbData?.session) {
-        const user: User = {
-          id: sbData.user.id,
-          email: sbData.user.email || values.email,
-          username: sbData.user.user_metadata?.username || values.email.split('@')[0],
-          password: '',
-          createdAt: sbData.user.created_at,
-          updatedAt: sbData.user.updated_at || sbData.user.created_at,
-        };
+      // 1. Try Supabase Auth if email
+      if (isEmail) {
+        const { data: sbData, error: sbError } = await supabase.auth.signInWithPassword({
+          email: identifier,
+          password: values.password,
+        });
 
-        await this.storeAuthenticatedInfo(user, sbData.session.access_token);
-        await this.loadAccessToken();
-        return user;
+        if (!sbError && sbData?.session) {
+          const user: User = {
+            id: sbData.user.id,
+            email: sbData.user.email || identifier,
+            username: sbData.user.user_metadata?.username || identifier.split('@')[0],
+            password: '',
+            createdAt: sbData.user.created_at,
+            updatedAt: sbData.user.updated_at || sbData.user.created_at,
+          };
+
+          await this.storeAuthenticatedInfo(user, sbData.session.access_token);
+          await this.loadAccessToken();
+          return user;
+        }
       }
 
-      // 2. Fallback to existing Go API
+      // 2. Fallback to existing Go API (supports username or email)
       const { data } = await this.restConnector.post('/auth/login', {
-        email: values.email,
+        username: !isEmail ? identifier : undefined,
+        email: isEmail ? identifier : undefined,
         password: values.password,
       });
 
